@@ -16,7 +16,7 @@ class CustomAppBar extends AppBar {
 
   CustomAppBar(
       {super.key,
-      this.titleText = 'Elastic',
+      this.titleText = 'Elastic + Demacia widgets',
       this.appBarColor,
       this.onWindowClose,
       required this.menuBar})
