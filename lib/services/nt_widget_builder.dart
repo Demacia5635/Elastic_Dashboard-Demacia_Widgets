@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:elastic_dashboard/services/log.dart';
 import 'package:elastic_dashboard/services/nt_connection.dart';
 import 'package:elastic_dashboard/services/settings.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/pid_ff_talon_motor.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/talon_motor.dart';
 import 'package:elastic_dashboard/widgets/draggable_containers/draggable_widget_container.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/accelerometer.dart';
@@ -156,6 +157,17 @@ class NTWidgetBuilder {
       minWidth: _normalSize * 2,
       defaultHeight: 2,
       defaultWidth: 2,
+    );
+
+    register(
+      name: PidFfTalonMotorWidget.widgetType,
+      model: PidFfTalonMotorModel.new,
+      widget: PidFfTalonMotorWidget.new,
+      fromJson: PidFfTalonMotorModel.fromJson,
+      minWidth: _normalSize * 3,
+      minHeight: _normalSize * 3,
+      defaultWidth: 3,
+      defaultHeight: 3
     );
 
     register(
