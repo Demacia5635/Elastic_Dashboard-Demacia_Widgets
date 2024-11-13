@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:elastic_dashboard/services/log.dart';
 import 'package:elastic_dashboard/services/nt_connection.dart';
 import 'package:elastic_dashboard/services/settings.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/talon_motor.dart';
 import 'package:elastic_dashboard/widgets/draggable_containers/draggable_widget_container.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/accelerometer.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/basic_swerve_drive.dart';
@@ -145,6 +146,17 @@ class NTWidgetBuilder {
         model: AccelerometerModel.new,
         widget: AccelerometerWidget.new,
         fromJson: AccelerometerModel.fromJson);
+
+    register(
+      name: TalonMotorWidget.widgetType,
+      model: TalonMotorModel.new,
+      widget: TalonMotorWidget.new,
+      fromJson: TalonMotorModel.fromJson,
+      minHeight: _normalSize * 2,
+      minWidth: _normalSize * 2,
+      defaultHeight: 2,
+      defaultWidth: 2,
+    );
 
     register(
         name: SwerveDriveWidget.widgetType,
