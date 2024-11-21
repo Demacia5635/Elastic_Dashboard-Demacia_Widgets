@@ -91,7 +91,7 @@ class TalonMotorWidget extends NTWidget {
     return ListenableBuilder(
       listenable: Listenable.merge(model.subscriptions),
       builder: (context, child) {
-        String controlMode = tryCast(model.controlModeSubscription.value) ?? "empty controlMode";
+        String controlMode = tryCast(model.controlModeSubscription.value) ?? "Empty ControlMode";
         double closeLoopSP = tryCast(model.closeLoopSPSubscription.value) ?? 0;
         double closeLoopError = tryCast(model.closeLoopErrorSubscription.value) ?? 0;
         double position = tryCast(model.positionSubscription.value) ?? 0;
@@ -99,9 +99,7 @@ class TalonMotorWidget extends NTWidget {
         double acceleration = tryCast(model.accelerationSubscription.value) ?? 0;
         bool isInvert = tryCast(model.isInvertSubscription.value) ?? false;
         double voltage = tryCast(model.voltageSubscription.value) ?? 0;
-        double clampedVoltage = voltage.clamp(0, 12.0);
-        
-        // double value = tryCast(data) ?? 0.0;
+        voltage = voltage.abs();
 
         return Row(
           children: [
@@ -228,7 +226,7 @@ class TalonMotorWidget extends NTWidget {
                       minimum: 0,
                       barPointers: [
                         LinearBarPointer(
-                          value: clampedVoltage,
+                          value: voltage,
                           color: Colors.yellow.shade600,
                           edgeStyle: LinearEdgeStyle.bothCurve,
                           animationDuration: 0,

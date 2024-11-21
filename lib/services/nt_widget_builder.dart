@@ -6,7 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:elastic_dashboard/services/log.dart';
 import 'package:elastic_dashboard/services/nt_connection.dart';
 import 'package:elastic_dashboard/services/settings.dart';
-import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/pid_ff_talon_motor.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/motion_magic_config.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/pid_ff_config.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/talon_motor.dart';
 import 'package:elastic_dashboard/widgets/draggable_containers/draggable_widget_container.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/accelerometer.dart';
@@ -160,13 +161,24 @@ class NTWidgetBuilder {
     );
 
     register(
-      name: PidFfTalonMotorWidget.widgetType,
-      model: PidFfTalonMotorModel.new,
-      widget: PidFfTalonMotorWidget.new,
-      fromJson: PidFfTalonMotorModel.fromJson,
+      name: PidFfConfigWidget.widgetType,
+      model: PidFfConfigModel.new,
+      widget: PidFfConfigWidget.new,
+      fromJson: PidFfConfigModel.fromJson,
       minWidth: _normalSize * 3,
       minHeight: _normalSize * 3,
       defaultWidth: 3,
+      defaultHeight: 3
+    );
+
+    register(
+      name: MotionMagicConfigWidget.widgetType,
+      model: MotionMagicConfigModel.new,
+      widget: MotionMagicConfigWidget.new,
+      fromJson: MotionMagicConfigModel.fromJson,
+      minWidth: _normalSize * 2,
+      minHeight: _normalSize * 3,
+      defaultWidth: 2,
       defaultHeight: 3
     );
 

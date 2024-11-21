@@ -1,15 +1,15 @@
-import 'package:elastic_dashboard/services/text_formatter_builder.dart';
 import 'package:flutter/material.dart';
 
 import 'package:dot_cast/dot_cast.dart';
 import 'package:provider/provider.dart';
 
 import 'package:elastic_dashboard/services/nt4_client.dart';
+import 'package:elastic_dashboard/services/text_formatter_builder.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/nt_widget.dart';
 
-class PidFfTalonMotorModel extends MultiTopicNTWidgetModel {
+class PidFfConfigModel extends MultiTopicNTWidgetModel {
   @override
-  String type = PidFfTalonMotorWidget.widgetType;
+  String type = PidFfConfigWidget.widgetType;
 
   double _kPLastValue = 0.0;
   double _kILastValue = 0.0;
@@ -52,15 +52,15 @@ class PidFfTalonMotorModel extends MultiTopicNTWidgetModel {
 
   NT4Topic? updateMotorTopic;
 
-  get kPTopic => '$topic/kP';
-  get kITopic => '$topic/kI';
-  get kDTopic => '$topic/kD';
-  get kSTopic => '$topic/kS';
-  get kVTopic => '$topic/kV';
-  get kATopic => '$topic/kA';
-  get kGTopic => '$topic/kG';
+  get kPTopic => '$topic/KP';
+  get kITopic => '$topic/KI';
+  get kDTopic => '$topic/KD';
+  get kSTopic => '$topic/KS';
+  get kVTopic => '$topic/KV';
+  get kATopic => '$topic/KA';
+  get kGTopic => '$topic/KG';
 
-  get updateMotorTopicName => '$topic/update';
+  get updateMotorTopicName => '$topic/Update';
 
   late NT4Subscription kPSubscription;
   late NT4Subscription kISubscription;
@@ -83,7 +83,7 @@ class PidFfTalonMotorModel extends MultiTopicNTWidgetModel {
     updateMotorSubscription,
   ];
 
-  PidFfTalonMotorModel({
+  PidFfConfigModel({
     required super.ntConnection,
     required super.preferences,
     required super.topic,
@@ -91,7 +91,7 @@ class PidFfTalonMotorModel extends MultiTopicNTWidgetModel {
     super.dataType,
   }) : super();
 
-  PidFfTalonMotorModel.fromJson({
+  PidFfConfigModel.fromJson({
     required super.ntConnection,
     required super.preferences,
     required super.jsonData,
@@ -256,14 +256,14 @@ class PidFfTalonMotorModel extends MultiTopicNTWidgetModel {
 
 }
 
-class PidFfTalonMotorWidget extends NTWidget {
-  static const String widgetType = "pid+ff Talon motor";
+class PidFfConfigWidget extends NTWidget {
+  static const String widgetType = "PID+FF Config";
 
-  const PidFfTalonMotorWidget({super.key});
+  const PidFfConfigWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
-    PidFfTalonMotorModel model = cast(context.watch<NTWidgetModel>());
+    PidFfConfigModel model = cast(context.watch<NTWidgetModel>());
 
     return ListenableBuilder(
       listenable: Listenable.merge([
