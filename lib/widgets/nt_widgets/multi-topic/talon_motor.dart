@@ -101,152 +101,148 @@ class TalonMotorWidget extends NTWidget {
         double voltage = tryCast(model.voltageSubscription.value) ?? 0;
         voltage = voltage.abs();
 
-        return Row(
-          children: [
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  // color: Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(5.0),
+        return Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              // color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(5.0),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Column(
+              children: [
+                Text(
+                  controlMode,
+                  style: const TextStyle(
+                    fontSize: 17
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Column(
-                  children: [
-                    Text(
-                      controlMode,
-                      style: const TextStyle(
-                        fontSize: 17
+                Expanded(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(5.0),
+                            color: Theme.of(context).colorScheme.surface
+                          ),
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          child: Text(
+                            'SP: ${closeLoopSP.toStringAsFixed(2)}',
+                            textAlign: TextAlign.center,
+                          ),
+                        )
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(5.0),
-                                color: Theme.of(context).colorScheme.surface
-                              ),
-                              margin: const EdgeInsets.symmetric(horizontal: 3),
-                              child: Text(
-                                'SP: ${closeLoopSP.toStringAsFixed(2)}',
-                                textAlign: TextAlign.center,
-                              ),
-                            )
-                          ),
-                          const SizedBox(
-                            width: 5,
-                          ),
-                          Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(5.0),
-                                color: Theme.of(context).colorScheme.surface
-                              ),
-                              margin: const EdgeInsets.symmetric(horizontal: 3),
-                              child: Text(
-                                'Error: ${closeLoopError.toStringAsFixed(2)}',
-                                textAlign: TextAlign.center,
-                              ),
-                            )
-                          ),
-                        ],
-                      )
-                    ),
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(5.0),
-                                color: Theme.of(context).colorScheme.surface
-                              ),
-                              margin: const EdgeInsets.symmetric(horizontal: 3),
-                              child: Text(
-                                'pos:\n${position.toStringAsFixed(2)}',
-                                textAlign: TextAlign.center,
-                              ),
-                            )
-                          ),
-                          const SizedBox(
-                            width: 2,
-                          ),
-                          Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(5.0),
-                                color: Theme.of(context).colorScheme.surface
-                              ),
-                              margin: const EdgeInsets.symmetric(horizontal: 3),
-                              child: Text(
-                                'vel:\n${velocity.toStringAsFixed(2)}',
-                                textAlign: TextAlign.center,
-                              ),
-                            )
-                          ),
-                          const SizedBox(
-                            width: 2,
-                          ),
-                          Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(5.0),
-                                color: Theme.of(context).colorScheme.surface
-                              ),
-                              margin: const EdgeInsets.symmetric(horizontal: 3),
-                              child: Text(
-                                'acc:\n${acceleration.toStringAsFixed(2)}',
-                                textAlign: TextAlign.center,
-                              ),
-                            )
-                          ),
-                        ],
-                      )
-                    ),
-                    const SizedBox(
-                      height: 3,
-                    ),
-                    Transform.flip(
-                      flipX: (velocity > 0 && isInvert) || (velocity < 0 && !isInvert),
-                      child: Icon(
-                        velocity.abs() > 0.2 ?
-                        Icons.autorenew : Icons.circle,
-                        color: velocity.abs() < 0.2 ? Colors.grey : isInvert ? Colors.red : Colors.green,
-                        size: 65.0,
+                      const SizedBox(
+                        width: 5,
                       ),
-                    ),
-                    const SizedBox(
-                      height: 2,
-                    ),
-                    SfLinearGauge(
-                      key: UniqueKey(),
-                      maximum: 12.0,
-                      minimum: 0,
-                      barPointers: [
-                        LinearBarPointer(
-                          value: voltage,
-                          color: Colors.yellow.shade600,
-                          edgeStyle: LinearEdgeStyle.bothCurve,
-                          animationDuration: 0,
-                          thickness: 5,
-                        ),
-                      ],
-                      axisTrackStyle: const LinearAxisTrackStyle(
-                        thickness: 5,
-                        edgeStyle: LinearEdgeStyle.bothCurve,
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(5.0),
+                            color: Theme.of(context).colorScheme.surface
+                          ),
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          child: Text(
+                            'Error: ${closeLoopError.toStringAsFixed(2)}',
+                            textAlign: TextAlign.center,
+                          ),
+                        )
                       ),
-                      labelFormatterCallback: (value) => '$value V',
-                      orientation: LinearGaugeOrientation.horizontal,
-                      isAxisInversed: false,
-                      interval: 3,
+                    ],
+                  )
+                ),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(5.0),
+                            color: Theme.of(context).colorScheme.surface
+                          ),
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          child: Text(
+                            'pos:\n${position.toStringAsFixed(2)}',
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      ),
+                      const SizedBox(
+                        width: 2,
+                      ),
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(5.0),
+                            color: Theme.of(context).colorScheme.surface
+                          ),
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          child: Text(
+                            'vel:\n${velocity.toStringAsFixed(2)}',
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      ),
+                      const SizedBox(
+                        width: 2,
+                      ),
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(5.0),
+                            color: Theme.of(context).colorScheme.surface
+                          ),
+                          margin: const EdgeInsets.symmetric(horizontal: 3),
+                          child: Text(
+                            'acc:\n${acceleration.toStringAsFixed(2)}',
+                            textAlign: TextAlign.center,
+                          ),
+                        )
+                      ),
+                    ],
+                  )
+                ),
+                const SizedBox(
+                  height: 3,
+                ),
+                Transform.flip(
+                  flipX: (velocity > 0 && isInvert) || (velocity < 0 && !isInvert),
+                  child: Icon(
+                    velocity.abs() > 0.2 ?
+                    Icons.change_circle_outlined : Icons.circle,
+                    color: velocity.abs() < 0.2 ? Colors.grey : isInvert ? Colors.red : Colors.green,
+                    size: 65.0,
+                  ),
+                ),
+                const SizedBox(
+                  height: 2,
+                ),
+                SfLinearGauge(
+                  key: UniqueKey(),
+                  maximum: 12.0,
+                  minimum: 0,
+                  barPointers: [
+                    LinearBarPointer(
+                      value: voltage,
+                      color: Colors.yellow.shade600,
+                      edgeStyle: LinearEdgeStyle.bothCurve,
+                      animationDuration: 0,
+                      thickness: 5,
                     ),
                   ],
+                  axisTrackStyle: const LinearAxisTrackStyle(
+                    thickness: 5,
+                    edgeStyle: LinearEdgeStyle.bothCurve,
+                  ),
+                  labelFormatterCallback: (value) => '$value V',
+                  orientation: LinearGaugeOrientation.horizontal,
+                  isAxisInversed: false,
+                  interval: 3,
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         );
       }
     );
