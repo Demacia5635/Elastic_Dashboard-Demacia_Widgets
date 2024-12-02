@@ -1,3 +1,4 @@
+import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/recording.dart';
 import 'package:flutter/material.dart';
 
 import 'package:dot_cast/dot_cast.dart';
@@ -180,6 +181,13 @@ class NTWidgetBuilder {
       minHeight: _normalSize * 3,
       defaultWidth: 2,
       defaultHeight: 3
+    );
+
+    register(
+      name: RecordingWidget.widgetType,
+      model: RecordingModel.new,
+      widget: RecordingWidget.new,
+      fromJson: RecordingModel.fromJson,
     );
 
     register(
