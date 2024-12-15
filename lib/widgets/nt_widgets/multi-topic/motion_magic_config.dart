@@ -35,7 +35,7 @@ class MotionMagicConfigModel extends MultiTopicNTWidgetModel {
   get velTopic => '$topic/Vel';
   get accTopic => '$topic/Acc';
   get jerkTopic => '$topic/Jerk';
-  
+
   get updateMotorTopicName => '$topic/Update';
 
   late NT4Subscription velSubscription;
@@ -45,11 +45,11 @@ class MotionMagicConfigModel extends MultiTopicNTWidgetModel {
 
   @override
   List<NT4Subscription> get subscriptions => [
-    velSubscription,
-    accSubscription,
-    jerkSubscription,
-    updateMotorSubscription,
-  ];
+        velSubscription,
+        accSubscription,
+        jerkSubscription,
+        updateMotorSubscription,
+      ];
 
   MotionMagicConfigModel({
     required super.ntConnection,
@@ -70,8 +70,9 @@ class MotionMagicConfigModel extends MultiTopicNTWidgetModel {
     velSubscription = ntConnection.subscribe(velTopic, super.period);
     accSubscription = ntConnection.subscribe(accTopic, super.period);
     jerkSubscription = ntConnection.subscribe(jerkTopic, super.period);
-    
-    updateMotorSubscription = ntConnection.subscribe(updateMotorTopicName, super.period);
+
+    updateMotorSubscription =
+        ntConnection.subscribe(updateMotorTopicName, super.period);
   }
 
   @override
@@ -82,7 +83,7 @@ class MotionMagicConfigModel extends MultiTopicNTWidgetModel {
 
     updateMotorTopic = null;
 
-    for(NT4Subscription subscription in subscriptions) {
+    for (NT4Subscription subscription in subscriptions) {
       ntConnection.unSubscribe(subscription);
     }
 
@@ -143,7 +144,6 @@ class MotionMagicConfigModel extends MultiTopicNTWidgetModel {
 
     ntConnection.updateDataFromTopic(_jerkTopic!, data);
   }
-
 }
 
 class MotionMagicConfigWidget extends NTWidget {
@@ -168,12 +168,13 @@ class MotionMagicConfigWidget extends NTWidget {
         double jerk = tryCast(model.jerkSubscription.value) ?? 0;
 
         bool wasNull = model.velTextController == null ||
-              model.accTextController == null ||
-              model.jerkTextController == null;
-        
+            model.accTextController == null ||
+            model.jerkTextController == null;
+
         model.velTextController ??= TextEditingController(text: vel.toString());
         model.accTextController ??= TextEditingController(text: acc.toString());
-        model.jerkTextController ??= TextEditingController(text: jerk.toString());
+        model.jerkTextController ??=
+            TextEditingController(text: jerk.toString());
 
         if (wasNull) {
           model.refresh();
@@ -194,20 +195,21 @@ class MotionMagicConfigWidget extends NTWidget {
         }
         model.jerkLastValue = jerk;
 
-        bool showWarning = 
-          vel != double.tryParse(model.velTextController!.text) ||
-          acc != double.tryParse(model.accTextController!.text) ||
-          jerk != double.tryParse(model.jerkTextController!.text);
+        bool showWarning =
+            vel != double.tryParse(model.velTextController!.text) ||
+                acc != double.tryParse(model.accTextController!.text) ||
+                jerk != double.tryParse(model.jerkTextController!.text);
 
         TextStyle labelStyle = Theme.of(context)
-          .textTheme
-          .bodyLarge!
-          .copyWith(fontWeight: FontWeight.bold);
+            .textTheme
+            .bodyLarge!
+            .copyWith(fontWeight: FontWeight.bold);
 
         void update() {
           bool publishTopic = model.updateMotorTopic == null;
 
-          model.updateMotorTopic ??= model.ntConnection.getTopicFromName(model.updateMotorTopicName);
+          model.updateMotorTopic ??=
+              model.ntConnection.getTopicFromName(model.updateMotorTopicName);
 
           if (model.updateMotorTopic == null) {
             return;
@@ -217,9 +219,11 @@ class MotionMagicConfigWidget extends NTWidget {
             model.ntConnection.publishTopic(model.updateMotorTopic!);
           }
 
-          bool running = model.updateMotorSubscription.value?.tryCast<bool>() ?? false;
+          bool running =
+              model.updateMotorSubscription.value?.tryCast<bool>() ?? false;
 
-          model.ntConnection.updateDataFromTopic(model.updateMotorTopic!, !running);
+          model.ntConnection
+              .updateDataFromTopic(model.updateMotorTopic!, !running);
         }
 
         return Column(
@@ -240,12 +244,10 @@ class MotionMagicConfigWidget extends NTWidget {
                       TextFormatterBuilder.decimalTextFormatter()
                     ],
                     decoration: InputDecoration(
-                      contentPadding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-                      labelText: 'velocity',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(4)
-                      )
-                    ),
+                        contentPadding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+                        labelText: 'velocity',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(4))),
                   ),
                 ),
                 const Spacer(),

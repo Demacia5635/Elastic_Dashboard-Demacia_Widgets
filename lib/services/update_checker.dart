@@ -13,8 +13,8 @@ class UpdateChecker {
     logger.info('Checking for updates');
 
     try {
-      Release latestRelease = await _github.repositories
-          .getLatestRelease(RepositorySlug('Demacia5635', 'Elastic_Dashboard-Demacia_Widgets'));
+      Release latestRelease = await _github.repositories.getLatestRelease(
+          RepositorySlug('Demacia5635', 'Elastic_Dashboard-Demacia_Widgets'));
 
       String? tagName = latestRelease.tagName;
 

@@ -1,4 +1,3 @@
-import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/recording.dart';
 import 'package:flutter/material.dart';
 
 import 'package:dot_cast/dot_cast.dart';
@@ -7,9 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:elastic_dashboard/services/log.dart';
 import 'package:elastic_dashboard/services/nt_connection.dart';
 import 'package:elastic_dashboard/services/settings.dart';
-import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/motion_magic_config.dart';
-import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/pid_ff_config.dart';
-import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/talon_motor.dart';
 import 'package:elastic_dashboard/widgets/draggable_containers/draggable_widget_container.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/accelerometer.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/basic_swerve_drive.dart';
@@ -22,15 +18,19 @@ import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/encoder_widget.
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/field_widget.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/fms_info.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/gyro.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/motion_magic_config.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/motor_controller.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/network_alerts.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/pid_controller.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/pid_ff_config.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/power_distribution.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/profiled_pid_controller.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/recording.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/relay_widget.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/robot_preferences.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/split_button_chooser.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/subsystem_widget.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/talon_motor.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/three_axis_accelerometer.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/ultrasonic.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/yagsl_swerve_drive.dart';
@@ -162,26 +162,24 @@ class NTWidgetBuilder {
     );
 
     register(
-      name: PidFfConfigWidget.widgetType,
-      model: PidFfConfigModel.new,
-      widget: PidFfConfigWidget.new,
-      fromJson: PidFfConfigModel.fromJson,
-      minWidth: _normalSize * 3,
-      minHeight: _normalSize * 3,
-      defaultWidth: 3,
-      defaultHeight: 3
-    );
+        name: PidFfConfigWidget.widgetType,
+        model: PidFfConfigModel.new,
+        widget: PidFfConfigWidget.new,
+        fromJson: PidFfConfigModel.fromJson,
+        minWidth: _normalSize * 3,
+        minHeight: _normalSize * 3,
+        defaultWidth: 3,
+        defaultHeight: 3);
 
     register(
-      name: MotionMagicConfigWidget.widgetType,
-      model: MotionMagicConfigModel.new,
-      widget: MotionMagicConfigWidget.new,
-      fromJson: MotionMagicConfigModel.fromJson,
-      minWidth: _normalSize * 2,
-      minHeight: _normalSize * 3,
-      defaultWidth: 2,
-      defaultHeight: 3
-    );
+        name: MotionMagicConfigWidget.widgetType,
+        model: MotionMagicConfigModel.new,
+        widget: MotionMagicConfigWidget.new,
+        fromJson: MotionMagicConfigModel.fromJson,
+        minWidth: _normalSize * 2,
+        minHeight: _normalSize * 3,
+        defaultWidth: 2,
+        defaultHeight: 3);
 
     register(
       name: RecordingWidget.widgetType,

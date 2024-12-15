@@ -17,15 +17,13 @@ class RecordingModel extends MultiTopicNTWidgetModel {
   TextEditingController? statusTextController;
 
   NT4Topic? _statusTopic;
-  
+
   get statusTopic => '$topic/Status';
-  
+
   late NT4Subscription statusSubscription;
 
   @override
-  List<NT4Subscription> get subscriptions => [
-    statusSubscription
-  ];
+  List<NT4Subscription> get subscriptions => [statusSubscription];
 
   RecordingModel({
     required super.ntConnection,
@@ -157,10 +155,10 @@ class RecordingWidget extends NTWidget {
         model.statusTextController,
       ]),
       builder: (context, child) {
-
         bool wasNull = model.statusTextController == null;
 
-        model.statusTextController ??= TextEditingController(text: model.status.toString());
+        model.statusTextController ??=
+            TextEditingController(text: model.status.toString());
 
         if (wasNull) {
           model.refresh();
@@ -169,67 +167,47 @@ class RecordingWidget extends NTWidget {
         return Row(
           children: [
             Expanded(
-              child: GestureDetector(
-
-                onDoubleTap: model.isRunning && !model.isPaused
-                ? model.stop
-                : model.start,
-
-                child: Container(
-                  decoration: BoxDecoration(
-                    // color: Colors.white,
-                    borderRadius: BorderRadius.circular(5.0),
-                  ),
-                  child: Icon(
+                child: GestureDetector(
+              onDoubleTap:
+                  model.isRunning && !model.isPaused ? model.stop : model.start,
+              child: Container(
+                decoration: BoxDecoration(
+                  // color: Colors.white,
+                  borderRadius: BorderRadius.circular(5.0),
+                ),
+                child: Icon(
                     color: Colors.red,
                     model.isRunning && !model.isPaused
-                    ? Icons.stop_circle
-                    : Icons.fiber_manual_record
-                  ),
-                ),
-              )
+                        ? Icons.stop_circle
+                        : Icons.fiber_manual_record),
+              ),
+            )),
+            Expanded(
+              child: GestureDetector(
+                  onDoubleTap: model.isPaused ? model.stop : model.pause,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      // color: Colors.white,
+                      borderRadius: BorderRadius.circular(5.0),
+                    ),
+                    child: Icon(
+                        color: !model.isRunning ? Colors.blueGrey : Colors.blue,
+                        model.isPaused ? Icons.refresh_sharp : Icons.pause),
+                  )),
             ),
             Expanded(
               child: GestureDetector(
-
-                onDoubleTap: model.isPaused
-                ? model.stop
-                : model.pause,
-
-                child: Container(
-                  decoration: BoxDecoration(
-                    // color: Colors.white,
-                    borderRadius: BorderRadius.circular(5.0),
-                  ),
-                  child: Icon(
-                    color: !model.isRunning
-                    ? Colors.blueGrey
-                    : Colors.blue,
-
-                    model.isPaused
-                    ? Icons.refresh_sharp
-                    : Icons.pause
-                  ),
-                )
-              ),
-            ),
-            Expanded(
-              child: GestureDetector(
-
-                onDoubleTap: model.flag,
-
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(5.0),
-                  ),
-                  child: Icon(
-                    color: model.status == RECORDING_STATUS.FLAG 
-                    ? Colors.amber
-                    : Colors.grey,
-                    Icons.flag_circle
-                  ),
-                )
-              ),
+                  onDoubleTap: model.flag,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(5.0),
+                    ),
+                    child: Icon(
+                        color: model.status == RECORDING_STATUS.FLAG
+                            ? Colors.amber
+                            : Colors.grey,
+                        Icons.flag_circle),
+                  )),
             ),
           ],
         );
@@ -294,7 +272,7 @@ enum RECORDING_STATUS {
 //       },
 //     );
 //   }
-  
+
 //   @override
 //   Element createElement() {
 //     throw UnimplementedError();
