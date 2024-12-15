@@ -14,7 +14,7 @@ class UpdateChecker {
 
     try {
       Release latestRelease = await _github.repositories
-          .getLatestRelease(RepositorySlug('Gold872', 'elastic-dashboard'));
+          .getLatestRelease(RepositorySlug('Demacia5635', 'Elastic_Dashboard-Demacia_Widgets'));
 
       String? tagName = latestRelease.tagName;
 
@@ -34,6 +34,9 @@ class UpdateChecker {
           errorMessage: 'Invalid version name: \'$tagName\'',
         );
       }
+
+      /*get the demacia version instead of elastic version */
+      tagName = tagName.substring(tagName.lastIndexOf('v'));
 
       String versionName = tagName.substring(1);
 

@@ -4,7 +4,7 @@ import 'package:elastic_dashboard/services/ip_address_util.dart';
 
 class Settings {
   static const String repositoryLink =
-      'https://github.com/Gold872/elastic-dashboard';
+      'https://github.com/Demacia5635/Elastic_Dashboard-Demacia_Widgets';
   static const String releasesLink = '$repositoryLink/releases/latest';
 
   // window_manager doesn't support drag disable/maximize

@@ -1,7 +1,7 @@
-#define MyAppName "Elastic"
+#define MyAppName "Elastic + Demacia5635 Widgets"
 #define MyAppFolderName "FRC Elastic"
-#define MyAppPublisher "Gold87"
-#define MyAppURL "https://github.com/gold872/elastic-dashboard/"
+#define MyAppPublisher "Demacia5635"
+#define MyAppURL "https://github.com/Demacia5635/Elastic_Dashboard-Demacia_Widgets/"
 #define MyAppExeName "elastic_dashboard.exe"
 #define AppVersionName GetStringFileInfo('build\windows\x64\runner\Release\elastic_dashboard.exe', 'ProductVersion')
 #define ApplicationVersion GetVersionNumbersString('build\windows\x64\runner\Release\elastic_dashboard.exe')
