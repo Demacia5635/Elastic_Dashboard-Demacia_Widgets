@@ -35,9 +35,6 @@ class UpdateChecker {
         );
       }
 
-      /*get the demacia version instead of elastic version */
-      tagName = tagName.substring(tagName.lastIndexOf('v'));
-
       String versionName = tagName.substring(1);
 
       Version current = Version.parse(currentVersion);
