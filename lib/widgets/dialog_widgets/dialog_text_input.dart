@@ -65,7 +65,7 @@ class _DialogTextInputState extends State<DialogTextInput> {
           onChanged: (value) {
             if (widget.updateOnChanged &&
                 (value.isNotEmpty || widget.allowEmptySubmission)) {
-              widget.onSubmit.call(value);
+              // widget.onSubmit.call(value);
             }
           },
           onSubmitted: (value) {
