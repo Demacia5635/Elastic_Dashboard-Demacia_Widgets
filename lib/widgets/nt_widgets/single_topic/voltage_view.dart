@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:dot_cast/dot_cast.dart';
+import 'package:geekyants_flutter_gauges/geekyants_flutter_gauges.dart';
 import 'package:provider/provider.dart';
-import 'package:syncfusion_flutter_gauges/gauges.dart';
 
 import 'package:elastic_dashboard/services/nt4_client.dart';
 import 'package:elastic_dashboard/services/text_formatter_builder.dart';
@@ -18,7 +18,7 @@ class VoltageViewModel extends SingleTopicNTWidgetModel {
 
   double _minValue = 4.0;
   double _maxValue = 13.0;
-  int? _divisions = 5;
+  int _divisions = 5;
   bool _inverted = false;
   String _orientation = 'horizontal';
 
@@ -36,7 +36,7 @@ class VoltageViewModel extends SingleTopicNTWidgetModel {
     refresh();
   }
 
-  int? get divisions => _divisions;
+  int get divisions => _divisions;
 
   set divisions(value) {
     _divisions = value;
@@ -63,7 +63,7 @@ class VoltageViewModel extends SingleTopicNTWidgetModel {
     required super.topic,
     double minValue = 4.0,
     double maxValue = 13.0,
-    int? divisions = 5,
+    int divisions = 5,
     bool inverted = false,
     String orientation = 'horizontal',
     super.dataType,
@@ -82,7 +82,7 @@ class VoltageViewModel extends SingleTopicNTWidgetModel {
   }) : super.fromJson(jsonData: jsonData) {
     _minValue = tryCast(jsonData['min_value']) ?? 4.0;
     _maxValue = tryCast(jsonData['max_value']) ?? 13.0;
-    _divisions = tryCast(jsonData['divisions']);
+    _divisions = tryCast(jsonData['divisions']) ?? 5;
     _inverted = tryCast(jsonData['inverted']) ?? false;
     _orientation = tryCast(jsonData['orientation']) ?? 'horizontal';
   }
@@ -93,7 +93,7 @@ class VoltageViewModel extends SingleTopicNTWidgetModel {
       ...super.toJson(),
       'min_value': minValue,
       'max_value': maxValue,
-      if (divisions != null) 'divisions': divisions,
+      'divisions': divisions,
       'inverted': inverted,
       'orientation': orientation,
     };
@@ -175,8 +175,7 @@ class VoltageViewModel extends SingleTopicNTWidgetModel {
               },
               formatter: FilteringTextInputFormatter.digitsOnly,
               label: 'Divisions',
-              initialText: (_divisions != null) ? _divisions.toString() : '',
-              allowEmptySubmission: true,
+              initialText: _divisions.toString(),
             ),
           ),
           const SizedBox(width: 5),
@@ -206,6 +205,9 @@ class VoltageView extends NTWidget {
   Widget build(BuildContext context) {
     VoltageViewModel model = cast(context.watch<NTWidgetModel>());
 
+    String formatLabel(num input) =>
+        input.toStringAsFixed(input.truncateToDouble() == input ? 0 : 2);
+
     return ValueListenableBuilder(
       valueListenable: model.subscription!,
       builder: (context, data, child) {
@@ -213,16 +215,19 @@ class VoltageView extends NTWidget {
 
         double clampedVoltage = voltage.clamp(model.minValue, model.maxValue);
 
-        double? divisionInterval = (model.divisions != null)
-            ? (model.maxValue - model.minValue) / (model.divisions! - 1)
-            : null;
+        double? divisionInterval =
+            (model.maxValue - model.minValue) / (model.divisions - 1);
 
         int fractionDigits = (model.dataType == NT4TypeStr.kInt) ? 0 : 2;
 
-        LinearGaugeOrientation gaugeOrientation =
-            (model.orientation == 'vertical')
-                ? LinearGaugeOrientation.vertical
-                : LinearGaugeOrientation.horizontal;
+        GaugeOrientation gaugeOrientation = (model.orientation == 'vertical')
+            ? GaugeOrientation.vertical
+            : GaugeOrientation.horizontal;
+
+        RulerPosition rulerPosition =
+            (gaugeOrientation == GaugeOrientation.vertical)
+                ? RulerPosition.right
+                : RulerPosition.bottom;
 
         List<Widget> children = [
           Text(
@@ -233,29 +238,43 @@ class VoltageView extends NTWidget {
           const Flexible(
             child: SizedBox(width: 5.0, height: 5.0),
           ),
-          SfLinearGauge(
+          LinearGauge(
             key: UniqueKey(),
-            maximum: model.maxValue,
-            minimum: model.minValue,
-            barPointers: [
-              LinearBarPointer(
+            rulers: RulerStyle(
+              rulerPosition: rulerPosition,
+              inverseRulers: model.inverted,
+              showLabel: true,
+              textStyle: Theme.of(context).textTheme.bodyMedium,
+              primaryRulerColor: Colors.grey,
+              secondaryRulerColor: Colors.grey,
+            ),
+            gaugeOrientation: gaugeOrientation,
+            valueBar: [
+              ValueBar(
+                color: Colors.yellow,
                 value: clampedVoltage,
-                color: Colors.yellow.shade600,
+                borderRadius: 5,
+                valueBarThickness: 7.5,
+                enableAnimation: false,
                 animationDuration: 0,
-                thickness: 7.5,
               ),
             ],
-            axisTrackStyle: const LinearAxisTrackStyle(
-              thickness: 7.5,
-            ),
-            labelFormatterCallback: (value) => '$value V',
-            orientation: gaugeOrientation,
-            isAxisInversed: model.inverted,
-            interval: divisionInterval,
+            customLabels: [
+              for (int i = 0; i < model.divisions; i++)
+                CustomRulerLabel(
+                  text:
+                      '${formatLabel(model.minValue + divisionInterval * i)} V',
+                  value: model.minValue + divisionInterval * i,
+                ),
+            ],
+            enableGaugeAnimation: false,
+            start: model.minValue,
+            end: model.maxValue,
+            steps: divisionInterval,
           ),
         ];
 
-        if (gaugeOrientation == LinearGaugeOrientation.vertical) {
+        if (gaugeOrientation == GaugeOrientation.vertical) {
           return Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: children,

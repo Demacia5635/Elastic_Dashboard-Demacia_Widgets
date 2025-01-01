@@ -29,7 +29,7 @@ abstract class NTWidgetModel extends ChangeNotifier {
 
   late String _topic;
 
-  get topic => _topic;
+  String get topic => _topic;
 
   set topic(value) => _topic = value;
 
@@ -185,7 +185,7 @@ class SingleTopicNTWidgetModel extends NTWidgetModel {
           NumberBar.widgetType,
           NumberSlider.widgetType,
           VoltageView.widgetType,
-          RadialGauge.widgetType,
+          RadialGaugeWidget.widgetType,
           GraphWidget.widgetType,
           MatchTimeWidget.widgetType,
         ];

@@ -3,13 +3,16 @@ import 'package:flutter/material.dart';
 class DialogDropdownChooser<T> extends StatefulWidget {
   final List<T>? choices;
   final T? initialValue;
-  final Function(T?) onSelectionChanged;
+  final void Function(T?) onSelectionChanged;
+  final String Function(T value)? nameMap;
 
-  const DialogDropdownChooser(
-      {super.key,
-      this.choices,
-      this.initialValue,
-      required this.onSelectionChanged});
+  const DialogDropdownChooser({
+    super.key,
+    this.choices,
+    this.initialValue,
+    required this.onSelectionChanged,
+    this.nameMap,
+  });
 
   @override
   State<DialogDropdownChooser<T>> createState() =>
@@ -40,14 +43,14 @@ class _DialogDropdownChooserState<T> extends State<DialogDropdownChooser<T>> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
           child: ExcludeFocus(
-            child: DropdownButton(
+            child: DropdownButton<T>(
               isExpanded: true,
               borderRadius: BorderRadius.circular(8.0),
               style: const TextStyle(fontWeight: FontWeight.normal),
               items: widget.choices?.map((T item) {
-                return DropdownMenuItem(
+                return DropdownMenuItem<T>(
                   value: item,
-                  child: Text(item.toString()),
+                  child: Text(widget.nameMap?.call(item) ?? item.toString()),
                 );
               }).toList(),
               value: selectedValue,

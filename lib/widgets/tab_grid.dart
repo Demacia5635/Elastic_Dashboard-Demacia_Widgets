@@ -14,7 +14,6 @@ import 'package:elastic_dashboard/services/settings.dart';
 import 'package:elastic_dashboard/widgets/draggable_containers/draggable_list_layout.dart';
 import 'package:elastic_dashboard/widgets/draggable_containers/draggable_nt_widget_container.dart';
 import 'package:elastic_dashboard/widgets/draggable_containers/draggable_widget_container.dart';
-import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/field_widget.dart';
 import 'draggable_containers/models/layout_container_model.dart';
 import 'draggable_containers/models/list_layout_model.dart';
 import 'draggable_containers/models/nt_widget_container_model.dart';
@@ -45,7 +44,17 @@ class TabGridModel extends ChangeNotifier {
     required this.preferences,
     required Map<String, dynamic> jsonData,
     required this.onAddWidgetPressed,
-    Function(String message)? onJsonLoadingWarning,
+    void Function(String message)? onJsonLoadingWarning,
+  }) {
+    loadFromJson(
+      jsonData: jsonData,
+      onJsonLoadingWarning: onJsonLoadingWarning,
+    );
+  }
+
+  void loadFromJson({
+    required Map<String, dynamic> jsonData,
+    void Function(String message)? onJsonLoadingWarning,
   }) {
     if (jsonData['containers'] != null) {
       loadContainersFromJson(
@@ -57,15 +66,11 @@ class TabGridModel extends ChangeNotifier {
     if (jsonData['layouts'] != null) {
       loadLayoutsFromJson(jsonData, onJsonLoadingWarning: onJsonLoadingWarning);
     }
-
-    for (WidgetContainerModel model in _widgetModels) {
-      model.addListener(notifyListeners);
-    }
   }
 
   void mergeFromJson({
     required Map<String, dynamic> jsonData,
-    Function(String message)? onJsonLoadingWarning,
+    void Function(String message)? onJsonLoadingWarning,
   }) {
     if (jsonData['containers'] != null) {
       for (Map<String, dynamic> widgetData in jsonData['containers']) {
@@ -172,7 +177,7 @@ class TabGridModel extends ChangeNotifier {
   void loadContainersFromJson(Map<String, dynamic> jsonData,
       {Function(String message)? onJsonLoadingWarning}) {
     for (Map<String, dynamic> containerData in jsonData['containers']) {
-      _widgetModels.add(
+      addWidget(
         NTWidgetContainerModel.fromJson(
           ntConnection: ntConnection,
           preferences: preferences,
@@ -222,7 +227,7 @@ class TabGridModel extends ChangeNotifier {
           continue;
       }
 
-      _widgetModels.add(widget);
+      addWidget(widget);
     }
   }
 
@@ -253,14 +258,20 @@ class TabGridModel extends ChangeNotifier {
 
     Offset localPosition = ancestor!.globalToLocal(globalPosition);
 
-    if (localPosition.dy < 0) {
-      localPosition = Offset(localPosition.dx, 0);
-    }
+    return localPosition;
+  }
 
-    if (localPosition.dx < 0) {
-      localPosition = Offset(0, localPosition.dy);
-    }
+  Offset getDragInWidgetCenter(
+      WidgetContainerModel widget, Offset globalPosition) {
+    Offset localPosition = getLocalPosition(globalPosition) -
+        Offset(widget.displayRect.width, widget.displayRect.height) / 2;
 
+    if (localPosition.dy < 0 || localPosition.dx < 0) {
+      localPosition = Offset(
+        localPosition.dx.clamp(0, double.infinity),
+        localPosition.dy.clamp(0, double.infinity),
+      );
+    }
     return localPosition;
   }
 
@@ -327,11 +338,6 @@ class TabGridModel extends ChangeNotifier {
     model.previewRect = model.draggingRect;
     model.previewVisible = false;
     model.validLocation = true;
-
-    if (model is NTWidgetContainerModel &&
-        model.childModel is FieldWidgetModel) {
-      model.childModel.refresh();
-    }
 
     model.disposeModel();
   }
@@ -532,17 +538,8 @@ class TabGridModel extends ChangeNotifier {
     return false;
   }
 
-  void layoutDragOutUpdate(WidgetContainerModel model, Offset globalPosition) {
-    Offset localPosition = getLocalPosition(globalPosition);
-    model.draggingRect = Rect.fromLTWH(
-      localPosition.dx,
-      localPosition.dy,
-      model.draggingRect.width,
-      model.draggingRect.height,
-    );
-    _containerDraggingIn = MapEntry(model, globalPosition);
-    notifyListeners();
-  }
+  void layoutDragOutUpdate(WidgetContainerModel model, Offset globalPosition) =>
+      addDragInWidget(model, globalPosition);
 
   void onNTConnect() {
     for (WidgetContainerModel model in _widgetModels) {
@@ -557,10 +554,10 @@ class TabGridModel extends ChangeNotifier {
   }
 
   void addDragInWidget(WidgetContainerModel widget, Offset globalPosition) {
-    Offset localPosition = getLocalPosition(globalPosition);
+    Offset center = getDragInWidgetCenter(widget, globalPosition);
     widget.draggingRect = Rect.fromLTWH(
-      localPosition.dx,
-      localPosition.dy,
+      center.dx,
+      center.dy,
       widget.draggingRect.width,
       widget.draggingRect.height,
     );
@@ -577,14 +574,12 @@ class TabGridModel extends ChangeNotifier {
 
     Offset globalPosition = _containerDraggingIn!.value;
 
-    Offset localPosition = getLocalPosition(globalPosition);
+    Offset center = getDragInWidgetCenter(widget, globalPosition);
 
     int? gridSize = preferences.getInt(PrefKeys.gridSize);
 
-    double previewX =
-        DraggableWidgetContainer.snapToGrid(localPosition.dx, gridSize);
-    double previewY =
-        DraggableWidgetContainer.snapToGrid(localPosition.dy, gridSize);
+    double previewX = DraggableWidgetContainer.snapToGrid(center.dx, gridSize);
+    double previewY = DraggableWidgetContainer.snapToGrid(center.dy, gridSize);
 
     double width = widget.displayRect.width;
     double height = widget.displayRect.height;

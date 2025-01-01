@@ -124,9 +124,9 @@ class NTWidgetBuilder {
         minHeight: _normalSize);
 
     registerWithAlias(
-        names: {RadialGauge.widgetType, 'Simple Dial'},
+        names: {RadialGaugeWidget.widgetType, 'Simple Dial'},
         model: RadialGaugeModel.new,
-        widget: RadialGauge.new,
+        widget: RadialGaugeWidget.new,
         fromJson: RadialGaugeModel.fromJson,
         minWidth: _normalSize * 1.6,
         minHeight: _normalSize * 1.6);
@@ -258,9 +258,9 @@ class NTWidgetBuilder {
         model: FieldWidgetModel.new,
         widget: FieldWidget.new,
         fromJson: FieldWidgetModel.fromJson,
-        minWidth: _normalSize * 3,
+        minWidth: _normalSize * 2,
         minHeight: _normalSize * 2,
-        defaultWidth: 3,
+        defaultWidth: 2,
         defaultHeight: 2);
 
     register(
