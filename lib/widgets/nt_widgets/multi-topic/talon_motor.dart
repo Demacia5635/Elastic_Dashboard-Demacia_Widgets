@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:dot_cast/dot_cast.dart';
+import 'package:geekyants_flutter_gauges/geekyants_flutter_gauges.dart';
 import 'package:provider/provider.dart';
-import 'package:syncfusion_flutter_gauges/gauges.dart';
 
 import 'package:elastic_dashboard/services/nt4_client.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/nt_widget.dart';
@@ -108,6 +108,9 @@ class TalonMotorWidget extends NTWidget {
           bool isInvert = tryCast(model.isInvertSubscription.value) ?? false;
           double voltage = tryCast(model.voltageSubscription.value) ?? 0;
           voltage = voltage.abs();
+
+          String formatLabel(num input) =>
+              input.toStringAsFixed(input.truncateToDouble() == input ? 0 : 2);
 
           return Row(
             children: [
@@ -218,27 +221,35 @@ class TalonMotorWidget extends NTWidget {
                       const SizedBox(
                         height: 2,
                       ),
-                      SfLinearGauge(
-                        key: UniqueKey(),
-                        maximum: 12.0,
-                        minimum: 0,
-                        barPointers: [
-                          LinearBarPointer(
-                            value: voltage,
-                            color: Colors.yellow.shade600,
-                            edgeStyle: LinearEdgeStyle.bothCurve,
-                            animationDuration: 0,
-                            thickness: 5,
-                          ),
-                        ],
-                        axisTrackStyle: const LinearAxisTrackStyle(
-                          thickness: 5,
-                          edgeStyle: LinearEdgeStyle.bothCurve,
+                      LinearGauge(
+                        rulers: RulerStyle(
+                          rulerPosition: RulerPosition.bottom,
+                          showLabel: true,
+                          textStyle: Theme.of(context).textTheme.bodyMedium,
+                          primaryRulerColor: Colors.grey,
+                          secondaryRulerColor: Colors.grey,
                         ),
-                        labelFormatterCallback: (value) => '$value V',
-                        orientation: LinearGaugeOrientation.horizontal,
-                        isAxisInversed: false,
-                        interval: 3,
+                        gaugeOrientation: GaugeOrientation.horizontal,
+                        valueBar: [
+                          ValueBar(
+                            color: Colors.yellow,
+                            value: voltage,
+                            valueBarThickness: 5,
+                            enableAnimation: false,
+                            animationDuration: 0,
+                          )
+                        ],
+                        customLabels: [
+                          for (int i = 0; i <= 12; i+=3)
+                            CustomRulerLabel(
+                              text: '${formatLabel(i)} V',
+                              value: i.floorToDouble(),
+                            ),
+                        ],
+                        enableGaugeAnimation: false,
+                        start: 0,
+                        end: 12,
+                        steps: 5,
                       ),
                     ],
                   ),
