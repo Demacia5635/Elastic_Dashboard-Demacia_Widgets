@@ -11,14 +11,14 @@ class TalonMotorModel extends MultiTopicNTWidgetModel {
   @override
   String type = TalonMotorWidget.widgetType;
 
-  get controlModeTopic => '$topic/controlMode';
+  get controlModeTopic => '$topic/ControlMode';
   get closeLoopSPTopic => '$topic/CloseLoopSP';
   get closeLoopErrorTopic => '$topic/CloseLoopError';
-  get positionTopic => '$topic/position';
-  get velocityTopic => '$topic/velocity';
-  get accelerationTopic => '$topic/acceleration';
-  get isInvertTopic => '$topic/isInvert';
-  get voltageTopic => '$topic/voltage';
+  get positionTopic => '$topic/Position';
+  get velocityTopic => '$topic/Velocity';
+  get accelerationTopic => '$topic/Acceleration';
+  get isInvertTopic => '$topic/IsInvert';
+  get voltageTopic => '$topic/Voltage';
 
   late NT4Subscription controlModeSubscription;
   late NT4Subscription closeLoopSPSubscription;
@@ -240,7 +240,7 @@ class TalonMotorWidget extends NTWidget {
                           )
                         ],
                         customLabels: [
-                          for (int i = 0; i <= 12; i+=3)
+                          for (int i = 0; i <= 12; i += 3)
                             CustomRulerLabel(
                               text: '${formatLabel(i)} V',
                               value: i.floorToDouble(),
