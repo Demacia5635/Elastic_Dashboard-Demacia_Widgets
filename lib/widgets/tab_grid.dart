@@ -64,7 +64,10 @@ class TabGridModel extends ChangeNotifier {
     }
 
     if (jsonData['layouts'] != null) {
-      loadLayoutsFromJson(jsonData, onJsonLoadingWarning: onJsonLoadingWarning);
+      loadLayoutsFromJson(
+        jsonData,
+        onJsonLoadingWarning: onJsonLoadingWarning,
+      );
     }
   }
 
@@ -157,6 +160,7 @@ class TabGridModel extends ChangeNotifier {
                 ntConnection: ntConnection,
                 jsonData: jsonData,
                 preferences: preferences,
+                enabled: ntConnection.isNT4Connected,
                 onJsonLoadingWarning: onJsonLoadingWarning,
               ),
               enabled: ntConnection.isNT4Connected,
@@ -211,6 +215,7 @@ class TabGridModel extends ChangeNotifier {
               ntConnection: ntConnection,
               jsonData: jsonData,
               preferences: preferences,
+              enabled: ntConnection.isNT4Connected,
               onJsonLoadingWarning: onJsonLoadingWarning,
             ),
             enabled: ntConnection.isNT4Connected,
@@ -632,6 +637,13 @@ class TabGridModel extends ChangeNotifier {
     notifyListeners();
 
     return true;
+  }
+
+  void removeDragInWidget() {
+    if (_containerDraggingIn != null) {
+      _containerDraggingIn = null;
+      notifyListeners();
+    }
   }
 
   ListLayoutModel createListLayout(
