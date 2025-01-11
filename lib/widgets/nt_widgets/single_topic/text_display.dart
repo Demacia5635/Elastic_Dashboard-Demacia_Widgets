@@ -202,7 +202,7 @@ class TextDisplay extends NTWidget {
                   ),
                   onChanged: (value) {
                     model.typing = true;
-                    model.controller.text = value;
+                    // model.controller.text = value;
                   },
                   onSubmitted: (value) {
                     model.publishData(value);
