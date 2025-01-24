@@ -1,3 +1,4 @@
+import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/reef.dart';
 import 'package:flutter/material.dart';
 
 import 'package:dot_cast/dot_cast.dart';
@@ -186,6 +187,13 @@ class NTWidgetBuilder {
       model: RecordingModel.new,
       widget: RecordingWidget.new,
       fromJson: RecordingModel.fromJson,
+    );
+
+    register(
+      name: ReefWidget.widgetType,
+      model: ReefModel.new,
+      widget: ReefWidget.new,
+      fromJson: ReefModel.fromJson,
     );
 
     register(
