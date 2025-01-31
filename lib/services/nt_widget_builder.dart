@@ -1,4 +1,3 @@
-import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/reef.dart';
 import 'package:flutter/material.dart';
 
 import 'package:dot_cast/dot_cast.dart';
@@ -27,6 +26,7 @@ import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/pid_ff_config.d
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/power_distribution.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/profiled_pid_controller.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/recording.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/reef.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/relay_widget.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/robot_preferences.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/split_button_chooser.dart';
