@@ -194,6 +194,10 @@ class NTWidgetBuilder {
       model: ReefModel.new,
       widget: ReefWidget.new,
       fromJson: ReefModel.fromJson,
+      minWidth: _normalSize * 3,
+      minHeight: _normalSize * 4,
+      defaultWidth: 3,
+      defaultHeight: 4,
     );
 
     register(
