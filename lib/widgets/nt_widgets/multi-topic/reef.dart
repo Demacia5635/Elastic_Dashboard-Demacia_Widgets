@@ -4,8 +4,6 @@ import 'package:flutter/material.dart';
 
 import 'package:dot_cast/dot_cast.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_box_transform/flutter_box_transform.dart';
-import 'package:hexagon/hexagon.dart';
 import 'package:provider/provider.dart';
 
 import 'package:elastic_dashboard/services/nt4_client.dart';
@@ -17,30 +15,15 @@ class ReefModel extends MultiTopicNTWidgetModel {
   @override
   String type = ReefWidget.widgetType;
 
-  NT4Topic? _L2Topic;
-  NT4Topic? _L3Topic;
-  NT4Topic? _L4Topic;
+  NT4Topic? _wantedReefTopic;
 
+  get wantedReefTopic => '$topic/Wanted Reef';
 
-  get L2Topic => '$topic/L2';
-  get L3Topic => '$topic/L3';
-  get L4Topic => '$topic/L4';
-
-  late NT4Subscription L2Subscription;
-  late NT4Subscription L3Subscription;
-  late NT4Subscription L4Subscription;
-
-  TextEditingController controller = TextEditingController();
-  ReefLevel currentLevel = ReefLevel.L2;
-
-  TextEditingController controller2 = TextEditingController();
-  List<double> l2 = List<double>.filled(12, 0);
+  late NT4Subscription wantedReefSubscription;
 
   @override
   List<NT4Subscription> get subscriptions => [
-    L2Subscription,
-    L3Subscription,
-    L4Subscription,
+    wantedReefSubscription
   ];
 
   ReefModel({
@@ -59,9 +42,7 @@ class ReefModel extends MultiTopicNTWidgetModel {
 
   @override
   void initializeSubscriptions() {
-    L2Subscription = ntConnection.subscribe(L2Topic, super.period);
-    L3Subscription = ntConnection.subscribe(L3Topic, super.period);
-    L4Subscription = ntConnection.subscribe(L4Topic, super.period);
+    wantedReefSubscription = ntConnection.subscribe(wantedReefTopic, super.period);
   }
 
   @override
@@ -71,6 +52,25 @@ class ReefModel extends MultiTopicNTWidgetModel {
     }
     initializeSubscriptions();
     super.resetSubscription();
+  }
+
+  TextEditingController? currentLevelController;
+  ReefLevel currentLevel = ReefLevel.L2;
+
+  void sendReefAndLevel(ReefLevel level, Reef reef) {
+    bool publishTopic = _wantedReefTopic == null;
+
+    _wantedReefTopic ??= ntConnection.getTopicFromName(wantedReefTopic);
+
+    if (publishTopic) {
+      ntConnection.publishTopic(_wantedReefTopic!);
+    }
+
+    ntConnection.updateDataFromTopic(_wantedReefTopic!, "${reef.name} ${level.name}");
+  }
+
+  void sendReef(Reef reef) {
+    sendReefAndLevel(currentLevel, reef);
   }
 }
 
@@ -86,77 +86,101 @@ class ReefWidget extends NTWidget {
     return ListenableBuilder(
       listenable: Listenable.merge([
         ...model.subscriptions,
-        model.controller,
-        model.controller2
+        model.currentLevelController,
       ]), 
       builder: (context, child) {
+        bool wasNull = model.currentLevelController == null;
+        model.currentLevelController ??= TextEditingController(text: model.currentLevel.name);
+        if (wasNull) {
+          model.refresh();
+        }
+        
         List<ReefLevel> options = [ReefLevel.L2, ReefLevel.L3, ReefLevel.L4];
-        const List<Offset> locations = [
-          Offset(50, 210), Offset(50, 110), 
-          Offset(60, 90), Offset(140, 40),
-          Offset(186, 40), Offset(240, 90),
-          Offset(260, 120), Offset(250, 210),
-          Offset(240, 240), Offset(170, 280),
-          Offset(140, 280), Offset(60, 230)
-        ];
 
+        double angle;
+        const Offset hexagonCenter = Offset(180, 170);
+        String currentReef = tryCast(model.wantedReefSubscription.value) ?? "";
 
-        return Row(
+        return Column(
           children: [
-            Flexible(
-              child: SingleChildScrollView(
-                child: ToggleButtons(
-                  direction: Axis.vertical,
-                  onPressed: (index) {
-                    model.currentLevel = options[index];
-                    model.controller.text = model.currentLevel.name;
-                  },
-                  isSelected: options.map((ReefLevel option) {
-                    if (option == model.currentLevel) {
-                      return true;
-                    }
-                    return false;
-                  }).toList(),
-                  children: options.map((ReefLevel option) {
-                    return Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Text(option.name),
-                    );
-                  }).toList(),
+            Container(
+              margin: EdgeInsets.all(8),
+                child: SingleChildScrollView(
+                  child: ToggleButtons(
+                    direction: Axis.horizontal,
+                    onPressed: (index) {
+                      model.currentLevel = options[index];
+                      model.currentLevelController!.text = model.currentLevel.name;
+                    },
+                    isSelected: options.map((ReefLevel option) {
+                      if (option == model.currentLevel) {
+                        return true;
+                      }
+                      return false;
+                    }).toList(),
+                    children: options.map((ReefLevel option) {
+                      return Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Text(option.name),
+                      );
+                    }).toList(),
+                  ),
                 ),
-              ),
             ),
-            Transform.rotate(
-              angle: 0.5 * math.pi,
-              child: GestureDetector(
-                onTapDown: (details) => {
-                  print(details.localPosition),
-                  for (Offset location in locations) {
-                    if ((details.localPosition.dx - location.dx).abs() < 20 
-                    && (details.localPosition.dy - location.dy).abs() < 20) {
-                      model.l2[locations.indexOf(location)] += 2,
-                      model.controller2.text = locations.indexOf(location).toString()
+            GestureDetector(
+              onTapDown: (details) => {
+                angle = math.atan((hexagonCenter.dy - details.localPosition.dy) / (hexagonCenter.dx - details.localPosition.dx)),
+                if (details.localPosition.dy > hexagonCenter.dy) {
+                  if (angle > 0) {
+                    if (angle < math.pi / 6) {
+                      model.sendReef(Reef.C2),
+                    } else if (angle > math.pi / 3) {
+                      model.sendReef(Reef.B2),
+                    } else {
+                      model.sendReef(Reef.C1),
+                    }
+                  } else {
+                    if (angle > -math.pi / 6) {
+                      model.sendReef(Reef.A1),
+                    } else if (angle < -math.pi / 3) {
+                      model.sendReef(Reef.B1),
+                    } else {
+                      model.sendReef(Reef.A2),
                     }
                   }
-                },
-                child: Container(
-                  margin: const EdgeInsets.all(10),
-                  child: HexagonWidget.pointy(
-                    child: Text(
-                      model.controller2.text,
-                      style: TextStyle(color: Colors.black),
-                    ),
-                    width: 300,
-                    color: model.currentLevel == ReefLevel.L2 
-                    ? Colors.red 
-                    : model.currentLevel == ReefLevel.L3
-                      ? Colors.orange
-                      : Colors.yellow,
-                    elevation: 8,
-                  ),
-                )
+                } else {
+                  if (angle > 0) {
+                    if (angle < math.pi / 6) {
+                      model.sendReef(Reef.F2),
+                    } else if (angle > math.pi / 3) {
+                      model.sendReef(Reef.E2),
+                    } else {
+                      model.sendReef(Reef.F1),
+                    }
+                  } else {
+                    if (angle > -math.pi / 6) {
+                      model.sendReef(Reef.D1),
+                    } else if (angle < -math.pi / 3) {
+                      model.sendReef(Reef.E1),
+                    } else {
+                      model.sendReef(Reef.D2),
+                    }
+                  }
+                }
+              },
+              child: Container(
+                margin: const EdgeInsets.all(10),
+                child: Image.asset(
+                  "assets/fields/Reef.png",
+                ),
               )
-            )
+            ),
+            Text(
+              currentReef,
+              style: const TextStyle(
+                fontSize: 20,
+              ),
+            ),
           ],
         );
       },
@@ -168,4 +192,13 @@ enum ReefLevel {
   L2,
   L3,
   L4,
+}
+
+enum Reef {
+  A1,A2,
+  B1,B2,
+  C1,C2,
+  D1,D2,
+  E1,E2,
+  F1,F2,
 }
