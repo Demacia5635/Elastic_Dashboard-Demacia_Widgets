@@ -15,18 +15,22 @@ class ReefModel extends MultiTopicNTWidgetModel {
   @override
   String type = ReefWidget.widgetType;
 
-  NT4Topic? _fieldPositionTopic;
+  NT4Topic? _positionTopic;
+  NT4Topic? _elementPositionTopic;
   NT4Topic? _levelTopic;
 
-  get fieldPositionTopic => '$topic/Field Position';
+  get positionTopic => '$topic/Position';
+  get elementPositionTopic => '$topic/Element Position';
   get levelTopic => '$topic/Level';
 
-  late NT4Subscription fieldPositionSubscription;
+  late NT4Subscription positionSubscription;
+  late NT4Subscription elementPositionSubscription;
   late NT4Subscription levelSubscription;
 
   @override
   List<NT4Subscription> get subscriptions => [
-        fieldPositionSubscription,
+        positionSubscription,
+        elementPositionSubscription,
         levelSubscription,
       ];
 
@@ -46,14 +50,16 @@ class ReefModel extends MultiTopicNTWidgetModel {
 
   @override
   void initializeSubscriptions() {
-    fieldPositionSubscription =
-        ntConnection.subscribe(fieldPositionTopic, super.period);
+    positionSubscription =
+        ntConnection.subscribe(positionTopic, super.period);
+    elementPositionSubscription = ntConnection.subscribe(elementPositionTopic, super.period);
     levelSubscription = ntConnection.subscribe(levelTopic, super.period);
   }
 
   @override
   void resetSubscription() {
-    _fieldPositionTopic = null;
+    _positionTopic = null;
+    _elementPositionTopic = null;
     _levelTopic = null;
 
     for (NT4Subscription subscription in subscriptions) {
@@ -72,31 +78,40 @@ class ReefModel extends MultiTopicNTWidgetModel {
   SAVED_CORAL_STATION lastCoralStation = SAVED_CORAL_STATION.LEFT;
   SAVED_REEF lastReef = SAVED_REEF.A;
 
-  double lastFieldPosition = 0;
+  double lastPositon = 0;
+  double lastElementPosition = 0;
   double lastLevel = 6;
+
+  bool hasFeed = false;
 
   void chooseReef(SAVED_REEF reef) {
     lastReef = reef;
     reefController?.text = reef.name;
 
-    bool publishTopic = fieldPositionTopic == null || levelTopic == null;
-
-    _fieldPositionTopic ??= ntConnection.getTopicFromName(fieldPositionTopic);
+    _positionTopic ??= ntConnection.getTopicFromName(positionTopic);
+    _elementPositionTopic ??= ntConnection.getTopicFromName(elementPositionTopic);
     _levelTopic ??= ntConnection.getTopicFromName(levelTopic);
 
-    if (fieldPositionTopic == null || levelTopic == null) {
+    if (positionTopic == null || elementPositionTopic == null || levelTopic == null) {
       return;
     }
 
     // if (publishTopic) {
-      ntConnection.publishTopic(_fieldPositionTopic!);
-      ntConnection.publishTopic(_levelTopic!);
+      ntConnection.publishTopic(_positionTopic!);
+      if (hasFeed) {
+        ntConnection.publishTopic(_elementPositionTopic!);
+        ntConnection.publishTopic(_levelTopic!);
+      }
     // }
 
-    ntConnection.updateDataFromTopic(_fieldPositionTopic!, reef.index + 2);
-    ntConnection.updateDataFromTopic(_levelTopic!, lastLevel);
+    ntConnection.updateDataFromTopic(_positionTopic!, reef.index);
 
-    lastFieldPosition = reef.index + 2;
+    lastPositon = reef.index.toDouble();
+
+    if (hasFeed) {
+      ntConnection.updateDataFromTopic(_elementPositionTopic!, lastElementPosition);
+      ntConnection.updateDataFromTopic(_levelTopic!, lastLevel);
+    }
   }
 
   void chooseLevel(SAVED_LEVEL level) {
@@ -113,51 +128,81 @@ class ReefModel extends MultiTopicNTWidgetModel {
     lastSavedLevel = level;
     levelController?.text = level.name;
 
-    bool publishTopic = levelTopic == null || fieldPositionTopic == null;
-
     _levelTopic ??= ntConnection.getTopicFromName(levelTopic);
-    _fieldPositionTopic ??= ntConnection.getTopicFromName(fieldPositionTopic);
+    _elementPositionTopic ??= ntConnection.getTopicFromName(elementPositionTopic);
+    _positionTopic ??= ntConnection.getTopicFromName(positionTopic);
 
-    if (levelTopic == null || fieldPositionTopic == null) {
+    if (levelTopic == null || elementPositionTopic == null || positionTopic == null) {
       return;
     }
 
     // if (publishTopic) {
       ntConnection.publishTopic(_levelTopic!);
-      ntConnection.publishTopic(_fieldPositionTopic!);
+      ntConnection.publishTopic(_elementPositionTopic!);
+      if (hasFeed) {
+        ntConnection.publishTopic(_positionTopic!);
+      }
     // }
 
-    double data = level.index - 2;
-    if (level == SAVED_LEVEL.ALGAE_BOTTOM || level == SAVED_LEVEL.ALGAE_TOP) {
-      data -= 2;
-    }
+    double elementPositionData = switch (level) {
+      SAVED_LEVEL.L1_RIGHT => 1,
+      SAVED_LEVEL.L1_LEFT => 0,
+      SAVED_LEVEL.L2_RIGHT => 1,
+      SAVED_LEVEL.L2_LEFT => 0,
+      SAVED_LEVEL.L3_RIGHT => 1,
+      SAVED_LEVEL.L3_LEFT => 0,
+      SAVED_LEVEL.L4_RIGHT => 1,
+      SAVED_LEVEL.L4_LEFT => 0,
+      SAVED_LEVEL.ALGAE_BOTTOM => 2,
+      SAVED_LEVEL.ALGAE_TOP => 2,
+    };
 
-    ntConnection.updateDataFromTopic(_levelTopic!, data);
-    ntConnection.updateDataFromTopic(_fieldPositionTopic!, lastFieldPosition);
+    double levelData = switch (level) {
+      SAVED_LEVEL.L1_RIGHT => 0,
+      SAVED_LEVEL.L1_LEFT => 0,
+      SAVED_LEVEL.L2_RIGHT => 0,
+      SAVED_LEVEL.L2_LEFT => 0,
+      SAVED_LEVEL.L3_RIGHT => 1,
+      SAVED_LEVEL.L3_LEFT => 1,
+      SAVED_LEVEL.L4_RIGHT => 1,
+      SAVED_LEVEL.L4_LEFT => 1,
+      SAVED_LEVEL.ALGAE_BOTTOM => 3,
+      SAVED_LEVEL.ALGAE_TOP => 4,
+    };
+
+    ntConnection.updateDataFromTopic(_elementPositionTopic!, elementPositionData);
+    ntConnection.updateDataFromTopic(_levelTopic!, levelData);
     
-    lastLevel = data;
+    lastElementPosition = elementPositionData;
+    lastLevel = levelData;
+
+    if (hasFeed) {
+      ntConnection.updateDataFromTopic(_positionTopic!, lastPositon);
+    }
   }
 
   void chooseCoralStation(SAVED_CORAL_STATION coralStation) {
+    hasFeed = true;
     lastCoralStation = coralStation;
     coralStationController?.text = coralStation.name;
 
-    bool publishTopic = fieldPositionTopic == null || levelTopic == null;
-
-    _fieldPositionTopic ??= ntConnection.getTopicFromName(fieldPositionTopic);
+    _positionTopic ??= ntConnection.getTopicFromName(positionTopic);
+    _elementPositionTopic ??= ntConnection.getTopicFromName(elementPositionTopic);
     _levelTopic ??= ntConnection.getTopicFromName(levelTopic);
 
-    if (fieldPositionTopic == null || levelTopic == null) {
+    if (positionTopic == null || elementPositionTopic == null || levelTopic == null) {
       return;
     }
 
     // if (publishTopic) {
-      ntConnection.publishTopic(_fieldPositionTopic!);
+      ntConnection.publishTopic(_positionTopic!);
+      ntConnection.publishTopic(_elementPositionTopic!);
       ntConnection.publishTopic(_levelTopic!);
     // }
 
-    ntConnection.updateDataFromTopic(_fieldPositionTopic!, coralStation == SAVED_CORAL_STATION.LEFT ? 0 : 1);
-    ntConnection.updateDataFromTopic(_levelTopic!, 6);
+    ntConnection.updateDataFromTopic(_positionTopic!, coralStation == SAVED_CORAL_STATION.LEFT ? 6 : 7);
+    ntConnection.updateDataFromTopic(_elementPositionTopic!, 3);
+    ntConnection.updateDataFromTopic(_levelTopic!, 2);
   }
 }
 
@@ -178,7 +223,7 @@ class ReefWidget extends NTWidget {
         model.reefController,
       ]),
       builder: (context, child) {
-        FIELD_POSITION fieldPosition = FIELD_POSITION.values.elementAt(tryCast(model.fieldPositionSubscription.value) ?? 0);
+        FIELD_POSITION fieldPosition = FIELD_POSITION.values.elementAt(tryCast(model.positionSubscription.value) ?? 0);
         LEVEL level = LEVEL.values.elementAt(tryCast(model.levelSubscription.value) ?? 0);
 
         bool wasNull = model.levelController == null ||
@@ -364,24 +409,29 @@ class ReefWidget extends NTWidget {
 }
 
 enum FIELD_POSITION { 
-  FEEDER_LEFT, 
-  FEEDER_RIGHT, 
   A, 
   B, 
   C, 
   D, 
   E, 
-  F 
+  F, 
+  FEEDER_LEFT, 
+  FEEDER_RIGHT, 
+}
+
+enum ELEMENT_POSITON {
+  CORAL_LEFT,
+  CORAL_RIGTH,
+  ALGEA,
+  FEEDER,
 }
 
 enum LEVEL {
-  L2_RIGHT,
-  L2_LEFT,
-  L3_RIGHT,
-  L3_LEFT,
+  L2,
+  L3,
+  FEEDER,
   ALGAE_BOTTOM,
-  ALGAE_TOP,
-  FEEDER
+  ALGAE_TOP
 }
 
 enum SAVED_CORAL_STATION {
