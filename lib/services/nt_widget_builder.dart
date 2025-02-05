@@ -177,9 +177,9 @@ class NTWidgetBuilder {
         model: MotionMagicConfigModel.new,
         widget: MotionMagicConfigWidget.new,
         fromJson: MotionMagicConfigModel.fromJson,
-        minWidth: _normalSize * 2,
+        minWidth: _normalSize * 5,
         minHeight: _normalSize * 3,
-        defaultWidth: 2,
+        defaultWidth: 5,
         defaultHeight: 3);
 
     register(
@@ -194,8 +194,8 @@ class NTWidgetBuilder {
       model: ReefModel.new,
       widget: ReefWidget.new,
       fromJson: ReefModel.fromJson,
-      minWidth: _normalSize * 3,
-      minHeight: _normalSize * 4,
+      minWidth: _normalSize * 4,
+      minHeight: _normalSize * 3,
       defaultWidth: 3,
       defaultHeight: 4,
     );
