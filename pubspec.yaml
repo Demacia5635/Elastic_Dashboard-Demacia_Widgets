@@ -67,6 +67,9 @@ flutter:
     - assets/logos/
     - assets/fields/
     - assets/reef/
+    - assets/reef/reefSelector/
+    - assets/reef/levelSelector/
+    - assets/reef/coralStationSelector/
 
 import_sorter:
   comments: false

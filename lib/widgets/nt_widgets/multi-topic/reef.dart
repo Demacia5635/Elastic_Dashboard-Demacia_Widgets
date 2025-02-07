@@ -80,7 +80,7 @@ class ReefModel extends MultiTopicNTWidgetModel {
 
   double lastPositon = 0;
   double lastElementPosition = 0;
-  double lastLevel = 6;
+  double lastLevel = 0;
 
   bool hasFeed = false;
 
@@ -115,10 +115,8 @@ class ReefModel extends MultiTopicNTWidgetModel {
   }
 
   void chooseLevel(SAVED_LEVEL level) {
-    if (level == SAVED_LEVEL.L1_LEFT) {
+    if (level == SAVED_LEVEL.L1) {
       level = SAVED_LEVEL.L2_LEFT;
-    } else if (level == SAVED_LEVEL.L1_RIGHT) {
-      level = SAVED_LEVEL.L2_RIGHT;
     } else if (level == SAVED_LEVEL.L4_LEFT) {
       level = SAVED_LEVEL.L3_LEFT;
     } else if (level == SAVED_LEVEL.L4_RIGHT) {
@@ -145,8 +143,7 @@ class ReefModel extends MultiTopicNTWidgetModel {
     // }
 
     double elementPositionData = switch (level) {
-      SAVED_LEVEL.L1_RIGHT => 1,
-      SAVED_LEVEL.L1_LEFT => 0,
+      SAVED_LEVEL.L1 => 1,
       SAVED_LEVEL.L2_RIGHT => 1,
       SAVED_LEVEL.L2_LEFT => 0,
       SAVED_LEVEL.L3_RIGHT => 1,
@@ -158,8 +155,7 @@ class ReefModel extends MultiTopicNTWidgetModel {
     };
 
     double levelData = switch (level) {
-      SAVED_LEVEL.L1_RIGHT => 0,
-      SAVED_LEVEL.L1_LEFT => 0,
+      SAVED_LEVEL.L1 => 0,
       SAVED_LEVEL.L2_RIGHT => 0,
       SAVED_LEVEL.L2_LEFT => 0,
       SAVED_LEVEL.L3_RIGHT => 1,
@@ -223,24 +219,36 @@ class ReefWidget extends NTWidget {
         model.reefController,
       ]),
       builder: (context, child) {
-        FIELD_POSITION fieldPosition = FIELD_POSITION.values.elementAt(tryCast(model.positionSubscription.value) ?? 0);
+        POSITION fieldPosition = POSITION.values.elementAt(tryCast(model.positionSubscription.value) ?? 0);
+        ELEMENT_POSITON elementPosition = ELEMENT_POSITON.values.elementAt(tryCast(model.elementPositionSubscription.value) ?? 0);
         LEVEL level = LEVEL.values.elementAt(tryCast(model.levelSubscription.value) ?? 0);
 
         bool wasNull = model.levelController == null ||
             model.coralStationController == null ||
             model.reefController == null;
 
-        if (fieldPosition == FIELD_POSITION.FEEDER_LEFT || fieldPosition == FIELD_POSITION.FEEDER_RIGHT) {
+        if (fieldPosition == POSITION.FEEDER_LEFT || fieldPosition == POSITION.FEEDER_RIGHT) {
           model.reefController ??= TextEditingController(text: model.lastCoralStation.name);
           model.levelController ??= TextEditingController(text: model.lastSavedLevel.name);
-          if (fieldPosition == FIELD_POSITION.FEEDER_LEFT) {
+          if (fieldPosition == POSITION.FEEDER_LEFT) {
             model.coralStationController ??= TextEditingController(text: SAVED_CORAL_STATION.LEFT.name);
           } else {
             model.coralStationController ??= TextEditingController(text: SAVED_CORAL_STATION.RIGHT.name);
           }
         } else {
           model.reefController ??= TextEditingController(text: fieldPosition.name);
-          model.levelController ??= TextEditingController(text: level.name);
+          model.levelController ??= TextEditingController(
+            text: 
+              elementPosition == ELEMENT_POSITON.ALGEA 
+              ? level.name 
+              : elementPosition == ELEMENT_POSITON.CORAL_LEFT 
+                ? level == LEVEL.L2 
+                  ? "L2_LEFT" 
+                  : "L3_LEFT" 
+                : level == LEVEL.L2 
+                  ? "L2_RIGHT" 
+                : "L3_RIGHT"
+          );
           model.coralStationController ??= TextEditingController(text: model.lastCoralStation.name);
         }
 
@@ -258,6 +266,30 @@ class ReefWidget extends NTWidget {
         const double L3Height = 145;
         const double L2Height = 220;
         const double L1Height = 285;
+
+        Image reefImage() {
+          try {
+            return Image.asset("assets/reef/reefSelector/${model.reefController!.text}.png");
+          } catch (e) {
+            return Image.asset("assets/reef/Reef.png");
+          }
+        }
+
+        Image levelImage() {
+          try {
+            return Image.asset("assets/reef/levelSelector/${model.levelController!.text}.png");
+          } catch (e) {
+            return Image.asset("assets/reef/LevelSelector.png");
+          }
+        }
+
+        Image coralStationImage() {
+          try {
+            return Image.asset("assets/reef/coralStationSelector/${model.coralStationController!.text}.png");
+          } catch (e) {
+            return Image.asset("assets/reef/CoralStationSelector.png");
+          }
+        }
 
         return Row(
           children: [
@@ -335,9 +367,7 @@ class ReefWidget extends NTWidget {
                     },
                 child: Container(
                   // margin: const EdgeInsets.all(),
-                  child: Image.asset(
-                    "assets/reef/Reef.png",
-                  ),
+                  child: reefImage(),
                 )),
             GestureDetector(
               onTapDown: (details) => {
@@ -358,7 +388,7 @@ class ReefWidget extends NTWidget {
                     } else if (details.localPosition.dy < L2Height) {
                       model.chooseLevel(SAVED_LEVEL.L2_RIGHT),
                     } else if (details.localPosition.dy < L1Height) {
-                      model.chooseLevel(SAVED_LEVEL.L1_RIGHT),
+                      model.chooseLevel(SAVED_LEVEL.L1),
                     }
                   } else {
                     if (details.localPosition.dy < L4Height) {
@@ -368,14 +398,14 @@ class ReefWidget extends NTWidget {
                     } else if (details.localPosition.dy < L2Height) {
                       model.chooseLevel(SAVED_LEVEL.L2_LEFT),
                     } else if (details.localPosition.dy < L1Height) {
-                      model.chooseLevel(SAVED_LEVEL.L1_LEFT),
+                      model.chooseLevel(SAVED_LEVEL.L1),
                     }
                   }
                 }
               },
               child: Container(
                 margin: const EdgeInsets.all(1),
-                child: Image.asset("assets/reef/levelSelector.png")
+                child: levelImage(),
               ),
             ),
             Column(
@@ -396,7 +426,7 @@ class ReefWidget extends NTWidget {
                   },
                   child: Container(
                     // margin: const EdgeInsets.only(right: 1,
-                    child: Image.asset("assets/reef/coralStationSelector.png")
+                    child: coralStationImage(),
                   ),
                 ),
               ],
@@ -408,7 +438,7 @@ class ReefWidget extends NTWidget {
   }
 }
 
-enum FIELD_POSITION { 
+enum POSITION { 
   A, 
   B, 
   C, 
@@ -440,8 +470,7 @@ enum SAVED_CORAL_STATION {
 }
 
 enum SAVED_LEVEL {
-  L1_RIGHT,
-  L1_LEFT,
+  L1,
   L2_RIGHT,
   L2_LEFT,
   L3_RIGHT,
