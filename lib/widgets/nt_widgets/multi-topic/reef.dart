@@ -50,9 +50,9 @@ class ReefModel extends MultiTopicNTWidgetModel {
 
   @override
   void initializeSubscriptions() {
-    positionSubscription =
-        ntConnection.subscribe(positionTopic, super.period);
-    elementPositionSubscription = ntConnection.subscribe(elementPositionTopic, super.period);
+    positionSubscription = ntConnection.subscribe(positionTopic, super.period);
+    elementPositionSubscription =
+        ntConnection.subscribe(elementPositionTopic, super.period);
     levelSubscription = ntConnection.subscribe(levelTopic, super.period);
   }
 
@@ -89,19 +89,22 @@ class ReefModel extends MultiTopicNTWidgetModel {
     reefController?.text = reef.name;
 
     _positionTopic ??= ntConnection.getTopicFromName(positionTopic);
-    _elementPositionTopic ??= ntConnection.getTopicFromName(elementPositionTopic);
+    _elementPositionTopic ??=
+        ntConnection.getTopicFromName(elementPositionTopic);
     _levelTopic ??= ntConnection.getTopicFromName(levelTopic);
 
-    if (positionTopic == null || elementPositionTopic == null || levelTopic == null) {
+    if (positionTopic == null ||
+        elementPositionTopic == null ||
+        levelTopic == null) {
       return;
     }
 
     // if (publishTopic) {
-      ntConnection.publishTopic(_positionTopic!);
-      if (hasFeed) {
-        ntConnection.publishTopic(_elementPositionTopic!);
-        ntConnection.publishTopic(_levelTopic!);
-      }
+    ntConnection.publishTopic(_positionTopic!);
+    if (hasFeed) {
+      ntConnection.publishTopic(_elementPositionTopic!);
+      ntConnection.publishTopic(_levelTopic!);
+    }
     // }
 
     ntConnection.updateDataFromTopic(_positionTopic!, reef.index);
@@ -109,7 +112,8 @@ class ReefModel extends MultiTopicNTWidgetModel {
     lastPositon = reef.index.toDouble();
 
     if (hasFeed) {
-      ntConnection.updateDataFromTopic(_elementPositionTopic!, lastElementPosition);
+      ntConnection.updateDataFromTopic(
+          _elementPositionTopic!, lastElementPosition);
       ntConnection.updateDataFromTopic(_levelTopic!, lastLevel);
     }
   }
@@ -127,19 +131,22 @@ class ReefModel extends MultiTopicNTWidgetModel {
     levelController?.text = level.name;
 
     _levelTopic ??= ntConnection.getTopicFromName(levelTopic);
-    _elementPositionTopic ??= ntConnection.getTopicFromName(elementPositionTopic);
+    _elementPositionTopic ??=
+        ntConnection.getTopicFromName(elementPositionTopic);
     _positionTopic ??= ntConnection.getTopicFromName(positionTopic);
 
-    if (levelTopic == null || elementPositionTopic == null || positionTopic == null) {
+    if (levelTopic == null ||
+        elementPositionTopic == null ||
+        positionTopic == null) {
       return;
     }
 
     // if (publishTopic) {
-      ntConnection.publishTopic(_levelTopic!);
-      ntConnection.publishTopic(_elementPositionTopic!);
-      if (hasFeed) {
-        ntConnection.publishTopic(_positionTopic!);
-      }
+    ntConnection.publishTopic(_levelTopic!);
+    ntConnection.publishTopic(_elementPositionTopic!);
+    if (hasFeed) {
+      ntConnection.publishTopic(_positionTopic!);
+    }
     // }
 
     double elementPositionData = switch (level) {
@@ -166,9 +173,10 @@ class ReefModel extends MultiTopicNTWidgetModel {
       SAVED_LEVEL.ALGAE_TOP => 4,
     };
 
-    ntConnection.updateDataFromTopic(_elementPositionTopic!, elementPositionData);
+    ntConnection.updateDataFromTopic(
+        _elementPositionTopic!, elementPositionData);
     ntConnection.updateDataFromTopic(_levelTopic!, levelData);
-    
+
     lastElementPosition = elementPositionData;
     lastLevel = levelData;
 
@@ -183,20 +191,24 @@ class ReefModel extends MultiTopicNTWidgetModel {
     coralStationController?.text = coralStation.name;
 
     _positionTopic ??= ntConnection.getTopicFromName(positionTopic);
-    _elementPositionTopic ??= ntConnection.getTopicFromName(elementPositionTopic);
+    _elementPositionTopic ??=
+        ntConnection.getTopicFromName(elementPositionTopic);
     _levelTopic ??= ntConnection.getTopicFromName(levelTopic);
 
-    if (positionTopic == null || elementPositionTopic == null || levelTopic == null) {
+    if (positionTopic == null ||
+        elementPositionTopic == null ||
+        levelTopic == null) {
       return;
     }
 
     // if (publishTopic) {
-      ntConnection.publishTopic(_positionTopic!);
-      ntConnection.publishTopic(_elementPositionTopic!);
-      ntConnection.publishTopic(_levelTopic!);
+    ntConnection.publishTopic(_positionTopic!);
+    ntConnection.publishTopic(_elementPositionTopic!);
+    ntConnection.publishTopic(_levelTopic!);
     // }
 
-    ntConnection.updateDataFromTopic(_positionTopic!, coralStation == SAVED_CORAL_STATION.LEFT ? 6 : 7);
+    ntConnection.updateDataFromTopic(
+        _positionTopic!, coralStation == SAVED_CORAL_STATION.LEFT ? 6 : 7);
     ntConnection.updateDataFromTopic(_elementPositionTopic!, 3);
     ntConnection.updateDataFromTopic(_levelTopic!, 2);
   }
@@ -219,37 +231,45 @@ class ReefWidget extends NTWidget {
         model.reefController,
       ]),
       builder: (context, child) {
-        POSITION fieldPosition = POSITION.values.elementAt(tryCast(model.positionSubscription.value) ?? 0);
-        ELEMENT_POSITON elementPosition = ELEMENT_POSITON.values.elementAt(tryCast(model.elementPositionSubscription.value) ?? 0);
-        LEVEL level = LEVEL.values.elementAt(tryCast(model.levelSubscription.value) ?? 0);
+        POSITION fieldPosition = POSITION.values
+            .elementAt(tryCast(model.positionSubscription.value) ?? 0);
+        ELEMENT_POSITON elementPosition = ELEMENT_POSITON.values
+            .elementAt(tryCast(model.elementPositionSubscription.value) ?? 0);
+        LEVEL level =
+            LEVEL.values.elementAt(tryCast(model.levelSubscription.value) ?? 0);
 
         bool wasNull = model.levelController == null ||
             model.coralStationController == null ||
             model.reefController == null;
 
-        if (fieldPosition == POSITION.FEEDER_LEFT || fieldPosition == POSITION.FEEDER_RIGHT) {
-          model.reefController ??= TextEditingController(text: model.lastCoralStation.name);
-          model.levelController ??= TextEditingController(text: model.lastSavedLevel.name);
+        if (fieldPosition == POSITION.FEEDER_LEFT ||
+            fieldPosition == POSITION.FEEDER_RIGHT) {
+          model.reefController ??=
+              TextEditingController(text: model.lastCoralStation.name);
+          model.levelController ??=
+              TextEditingController(text: model.lastSavedLevel.name);
           if (fieldPosition == POSITION.FEEDER_LEFT) {
-            model.coralStationController ??= TextEditingController(text: SAVED_CORAL_STATION.LEFT.name);
+            model.coralStationController ??=
+                TextEditingController(text: SAVED_CORAL_STATION.LEFT.name);
           } else {
-            model.coralStationController ??= TextEditingController(text: SAVED_CORAL_STATION.RIGHT.name);
+            model.coralStationController ??=
+                TextEditingController(text: SAVED_CORAL_STATION.RIGHT.name);
           }
         } else {
-          model.reefController ??= TextEditingController(text: fieldPosition.name);
+          model.reefController ??=
+              TextEditingController(text: fieldPosition.name);
           model.levelController ??= TextEditingController(
-            text: 
-              elementPosition == ELEMENT_POSITON.ALGEA 
-              ? level.name 
-              : elementPosition == ELEMENT_POSITON.CORAL_LEFT 
-                ? level == LEVEL.L2 
-                  ? "L2_LEFT" 
-                  : "L3_LEFT" 
-                : level == LEVEL.L2 
-                  ? "L2_RIGHT" 
-                : "L3_RIGHT"
-          );
-          model.coralStationController ??= TextEditingController(text: model.lastCoralStation.name);
+              text: elementPosition == ELEMENT_POSITON.ALGEA
+                  ? level.name
+                  : elementPosition == ELEMENT_POSITON.CORAL_LEFT
+                      ? level == LEVEL.L2
+                          ? "L2_LEFT"
+                          : "L3_LEFT"
+                      : level == LEVEL.L2
+                          ? "L2_RIGHT"
+                          : "L3_RIGHT");
+          model.coralStationController ??=
+              TextEditingController(text: model.lastCoralStation.name);
         }
 
         if (wasNull) {
@@ -269,7 +289,8 @@ class ReefWidget extends NTWidget {
 
         Image reefImage() {
           try {
-            return Image.asset("assets/reef/reefSelector/${model.reefController!.text}.png");
+            return Image.asset(
+                "assets/reef/reefSelector/${model.reefController!.text}.png");
           } catch (e) {
             return Image.asset("assets/reef/Reef.png");
           }
@@ -277,7 +298,8 @@ class ReefWidget extends NTWidget {
 
         Image levelImage() {
           try {
-            return Image.asset("assets/reef/levelSelector/${model.levelController!.text}.png");
+            return Image.asset(
+                "assets/reef/levelSelector/${model.levelController!.text}.png");
           } catch (e) {
             return Image.asset("assets/reef/LevelSelector.png");
           }
@@ -285,7 +307,8 @@ class ReefWidget extends NTWidget {
 
         Image coralStationImage() {
           try {
-            return Image.asset("assets/reef/coralStationSelector/${model.coralStationController!.text}.png");
+            return Image.asset(
+                "assets/reef/coralStationSelector/${model.coralStationController!.text}.png");
           } catch (e) {
             return Image.asset("assets/reef/CoralStationSelector.png");
           }
@@ -371,37 +394,65 @@ class ReefWidget extends NTWidget {
                 )),
             GestureDetector(
               onTapDown: (details) => {
-                if (math.sqrt(
-                  math.pow(details.localPosition.dx - algeaTopCenter.dx, 2) 
-                  + math.pow(details.localPosition.dy - algeaTopCenter.dy, 2)) <= 30) {
+                if (math.sqrt(math.pow(
+                            details.localPosition.dx - algeaTopCenter.dx, 2) +
+                        math.pow(
+                            details.localPosition.dy - algeaTopCenter.dy, 2)) <=
+                    30)
+                  {
                     model.chooseLevel(SAVED_LEVEL.ALGAE_TOP),
-                } else if (math.sqrt(
-                  math.pow(details.localPosition.dx - algeaBottomCenter.dx, 2)
-                  + math.pow(details.localPosition.dy - algeaBottomCenter.dy , 2)) <= 30) {
-                    model.chooseLevel(SAVED_LEVEL.ALGAE_BOTTOM),
-                } else {
-                  if (details.localPosition.dx > 75) {
-                    if (details.localPosition.dy < L4Height) {
-                      model.chooseLevel(SAVED_LEVEL.L4_RIGHT),
-                    } else if (details.localPosition.dy < L3Height) {
-                      model.chooseLevel(SAVED_LEVEL.L3_RIGHT),
-                    } else if (details.localPosition.dy < L2Height) {
-                      model.chooseLevel(SAVED_LEVEL.L2_RIGHT),
-                    } else if (details.localPosition.dy < L1Height) {
-                      model.chooseLevel(SAVED_LEVEL.L1),
-                    }
-                  } else {
-                    if (details.localPosition.dy < L4Height) {
-                      model.chooseLevel(SAVED_LEVEL.L4_LEFT),
-                    } else if (details.localPosition.dy < L3Height) {
-                      model.chooseLevel(SAVED_LEVEL.L3_LEFT),
-                    } else if (details.localPosition.dy < L2Height) {
-                      model.chooseLevel(SAVED_LEVEL.L2_LEFT),
-                    } else if (details.localPosition.dy < L1Height) {
-                      model.chooseLevel(SAVED_LEVEL.L1),
-                    }
                   }
-                }
+                else if (math.sqrt(math.pow(
+                            details.localPosition.dx - algeaBottomCenter.dx,
+                            2) +
+                        math.pow(
+                            details.localPosition.dy - algeaBottomCenter.dy,
+                            2)) <=
+                    30)
+                  {
+                    model.chooseLevel(SAVED_LEVEL.ALGAE_BOTTOM),
+                  }
+                else
+                  {
+                    if (details.localPosition.dx > 75)
+                      {
+                        if (details.localPosition.dy < L4Height)
+                          {
+                            model.chooseLevel(SAVED_LEVEL.L4_RIGHT),
+                          }
+                        else if (details.localPosition.dy < L3Height)
+                          {
+                            model.chooseLevel(SAVED_LEVEL.L3_RIGHT),
+                          }
+                        else if (details.localPosition.dy < L2Height)
+                          {
+                            model.chooseLevel(SAVED_LEVEL.L2_RIGHT),
+                          }
+                        else if (details.localPosition.dy < L1Height)
+                          {
+                            model.chooseLevel(SAVED_LEVEL.L1),
+                          }
+                      }
+                    else
+                      {
+                        if (details.localPosition.dy < L4Height)
+                          {
+                            model.chooseLevel(SAVED_LEVEL.L4_LEFT),
+                          }
+                        else if (details.localPosition.dy < L3Height)
+                          {
+                            model.chooseLevel(SAVED_LEVEL.L3_LEFT),
+                          }
+                        else if (details.localPosition.dy < L2Height)
+                          {
+                            model.chooseLevel(SAVED_LEVEL.L2_LEFT),
+                          }
+                        else if (details.localPosition.dy < L1Height)
+                          {
+                            model.chooseLevel(SAVED_LEVEL.L1),
+                          }
+                      }
+                  }
               },
               child: Container(
                 margin: const EdgeInsets.all(1),
@@ -413,16 +464,18 @@ class ReefWidget extends NTWidget {
                 Container(
                   margin: const EdgeInsets.only(top: 20, bottom: 20),
                   child: Text(
-                    "${model.reefController?.text} \n ${model.levelController?.text} \n ${model.coralStationController?.text}"
-                  ),
+                      "${model.reefController?.text} \n ${model.levelController?.text} \n ${model.coralStationController?.text}"),
                 ),
                 GestureDetector(
                   onTapDown: (details) => {
-                    if (details.localPosition.dx > 50) {
-                      model.chooseCoralStation(SAVED_CORAL_STATION.RIGHT),
-                    } else {
-                      model.chooseCoralStation(SAVED_CORAL_STATION.LEFT),
-                    }
+                    if (details.localPosition.dx > 50)
+                      {
+                        model.chooseCoralStation(SAVED_CORAL_STATION.RIGHT),
+                      }
+                    else
+                      {
+                        model.chooseCoralStation(SAVED_CORAL_STATION.LEFT),
+                      }
                   },
                   child: Container(
                     // margin: const EdgeInsets.only(right: 1,
@@ -438,15 +491,15 @@ class ReefWidget extends NTWidget {
   }
 }
 
-enum POSITION { 
-  A, 
-  B, 
-  C, 
-  D, 
-  E, 
-  F, 
-  FEEDER_LEFT, 
-  FEEDER_RIGHT, 
+enum POSITION {
+  A,
+  B,
+  C,
+  D,
+  E,
+  F,
+  FEEDER_LEFT,
+  FEEDER_RIGHT,
 }
 
 enum ELEMENT_POSITON {
@@ -456,18 +509,9 @@ enum ELEMENT_POSITON {
   FEEDER,
 }
 
-enum LEVEL {
-  L2,
-  L3,
-  FEEDER,
-  ALGAE_BOTTOM,
-  ALGAE_TOP
-}
+enum LEVEL { L2, L3, FEEDER, ALGAE_BOTTOM, ALGAE_TOP }
 
-enum SAVED_CORAL_STATION {
-  LEFT,
-  RIGHT
-}
+enum SAVED_CORAL_STATION { LEFT, RIGHT }
 
 enum SAVED_LEVEL {
   L1,
