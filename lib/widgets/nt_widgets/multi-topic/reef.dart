@@ -107,14 +107,14 @@ class ReefModel extends MultiTopicNTWidgetModel {
     }
     // }
 
-    ntConnection.updateDataFromTopic(_positionTopic!, reef.index);
+    ntConnection.updateDataFromTopic(_positionTopic!, reef.index.toDouble());
 
     lastPositon = reef.index.toDouble();
 
     if (hasFeed) {
       ntConnection.updateDataFromTopic(
-          _elementPositionTopic!, lastElementPosition);
-      ntConnection.updateDataFromTopic(_levelTopic!, lastLevel);
+          _elementPositionTopic!, lastElementPosition.toDouble());
+      ntConnection.updateDataFromTopic(_levelTopic!, lastLevel.toDouble());
     }
   }
 
@@ -174,14 +174,14 @@ class ReefModel extends MultiTopicNTWidgetModel {
     };
 
     ntConnection.updateDataFromTopic(
-        _elementPositionTopic!, elementPositionData);
-    ntConnection.updateDataFromTopic(_levelTopic!, levelData);
+        _elementPositionTopic!, elementPositionData.toDouble());
+    ntConnection.updateDataFromTopic(_levelTopic!, levelData.toDouble());
 
     lastElementPosition = elementPositionData;
     lastLevel = levelData;
 
     if (hasFeed) {
-      ntConnection.updateDataFromTopic(_positionTopic!, lastPositon);
+      ntConnection.updateDataFromTopic(_positionTopic!, lastPositon.toDouble());
     }
   }
 
@@ -208,9 +208,9 @@ class ReefModel extends MultiTopicNTWidgetModel {
     // }
 
     ntConnection.updateDataFromTopic(
-        _positionTopic!, coralStation == SAVED_CORAL_STATION.LEFT ? 6 : 7);
-    ntConnection.updateDataFromTopic(_elementPositionTopic!, 3);
-    ntConnection.updateDataFromTopic(_levelTopic!, 2);
+        _positionTopic!, coralStation == SAVED_CORAL_STATION.LEFT ? 6.0 : 7.0);
+    ntConnection.updateDataFromTopic(_elementPositionTopic!, 3.0);
+    ntConnection.updateDataFromTopic(_levelTopic!, 2.0);
   }
 }
 
@@ -226,17 +226,23 @@ class ReefWidget extends NTWidget {
     return ListenableBuilder(
       listenable: Listenable.merge([
         ...model.subscriptions,
-        model.levelController,
-        model.coralStationController,
-        model.reefController,
+        // model.levelController,
+        // model.coralStationController,
+        // model.reefController,
       ]),
       builder: (context, child) {
-        POSITION fieldPosition = POSITION.values
-            .elementAt(tryCast(model.positionSubscription.value) ?? 0);
-        ELEMENT_POSITON elementPosition = ELEMENT_POSITON.values
-            .elementAt(tryCast(model.elementPositionSubscription.value) ?? 0);
-        LEVEL level =
-            LEVEL.values.elementAt(tryCast(model.levelSubscription.value) ?? 0);
+        int positionValue =
+            tryCast<double>(model.positionSubscription.value)?.toInt() ?? 0;
+        int elementPositionValue =
+            tryCast<double>(model.elementPositionSubscription.value)?.toInt() ??
+                0;
+        int levelValue =
+            tryCast<double>(model.levelSubscription.value)?.toInt() ?? 0;
+
+        POSITION fieldPosition = POSITION.values.elementAt(positionValue);
+        ELEMENT_POSITON elementPosition =
+            ELEMENT_POSITON.values.elementAt(elementPositionValue);
+        LEVEL level = LEVEL.values.elementAt(levelValue);
 
         bool wasNull = model.levelController == null ||
             model.coralStationController == null ||
@@ -256,9 +262,9 @@ class ReefWidget extends NTWidget {
                 TextEditingController(text: SAVED_CORAL_STATION.RIGHT.name);
           }
         } else {
-          model.reefController ??=
+          model.reefController =
               TextEditingController(text: fieldPosition.name);
-          model.levelController ??= TextEditingController(
+          model.levelController = TextEditingController(
               text: elementPosition == ELEMENT_POSITON.ALGEA
                   ? level.name
                   : elementPosition == ELEMENT_POSITON.CORAL_LEFT
@@ -268,7 +274,7 @@ class ReefWidget extends NTWidget {
                       : level == LEVEL.L2
                           ? "L2_RIGHT"
                           : "L3_RIGHT");
-          model.coralStationController ??=
+          model.coralStationController =
               TextEditingController(text: model.lastCoralStation.name);
         }
 
