@@ -232,54 +232,56 @@ class ReefWidget extends NTWidget {
       ]),
       builder: (context, child) {
         int positionValue =
-            tryCast<double>(model.positionSubscription.value)?.toInt() ?? 0;
+            tryCast<double>(model.positionSubscription.value)?.toInt() ?? -1;
         int elementPositionValue =
             tryCast<double>(model.elementPositionSubscription.value)?.toInt() ??
-                0;
+                -1;
         int levelValue =
-            tryCast<double>(model.levelSubscription.value)?.toInt() ?? 0;
+            tryCast<double>(model.levelSubscription.value)?.toInt() ?? -1;
 
-        POSITION fieldPosition = POSITION.values.elementAt(positionValue);
-        ELEMENT_POSITON elementPosition =
-            ELEMENT_POSITON.values.elementAt(elementPositionValue);
-        LEVEL level = LEVEL.values.elementAt(levelValue);
+        if (positionValue != -1 && elementPositionValue != -1 && levelValue != -1) {
+          POSITION fieldPosition = POSITION.values.elementAt(positionValue);
+          ELEMENT_POSITON elementPosition =
+              ELEMENT_POSITON.values.elementAt(elementPositionValue);
+          LEVEL level = LEVEL.values.elementAt(levelValue);
 
-        bool wasNull = model.levelController == null ||
-            model.coralStationController == null ||
-            model.reefController == null;
+          bool wasNull = model.levelController == null ||
+              model.coralStationController == null ||
+              model.reefController == null;
 
-        if (fieldPosition == POSITION.FEEDER_LEFT ||
-            fieldPosition == POSITION.FEEDER_RIGHT) {
-          model.reefController ??=
-              TextEditingController(text: model.lastCoralStation.name);
-          model.levelController ??=
-              TextEditingController(text: model.lastSavedLevel.name);
-          if (fieldPosition == POSITION.FEEDER_LEFT) {
-            model.coralStationController ??=
-                TextEditingController(text: SAVED_CORAL_STATION.LEFT.name);
+          if (fieldPosition == POSITION.FEEDER_LEFT ||
+              fieldPosition == POSITION.FEEDER_RIGHT) {
+            model.reefController ??=
+                TextEditingController(text: model.lastCoralStation.name);
+            model.levelController ??=
+                TextEditingController(text: model.lastSavedLevel.name);
+            if (fieldPosition == POSITION.FEEDER_LEFT) {
+              model.coralStationController ??=
+                  TextEditingController(text: SAVED_CORAL_STATION.LEFT.name);
+            } else {
+              model.coralStationController ??=
+                  TextEditingController(text: SAVED_CORAL_STATION.RIGHT.name);
+            }
           } else {
-            model.coralStationController ??=
-                TextEditingController(text: SAVED_CORAL_STATION.RIGHT.name);
+            model.reefController =
+                TextEditingController(text: fieldPosition.name);
+            model.levelController = TextEditingController(
+                text: elementPosition == ELEMENT_POSITON.ALGEA
+                    ? level.name
+                    : elementPosition == ELEMENT_POSITON.CORAL_LEFT
+                        ? level == LEVEL.L2
+                            ? "L2_LEFT"
+                            : "L3_LEFT"
+                        : level == LEVEL.L2
+                            ? "L2_RIGHT"
+                            : "L3_RIGHT");
+            model.coralStationController =
+                TextEditingController(text: model.lastCoralStation.name);
           }
-        } else {
-          model.reefController =
-              TextEditingController(text: fieldPosition.name);
-          model.levelController = TextEditingController(
-              text: elementPosition == ELEMENT_POSITON.ALGEA
-                  ? level.name
-                  : elementPosition == ELEMENT_POSITON.CORAL_LEFT
-                      ? level == LEVEL.L2
-                          ? "L2_LEFT"
-                          : "L3_LEFT"
-                      : level == LEVEL.L2
-                          ? "L2_RIGHT"
-                          : "L3_RIGHT");
-          model.coralStationController =
-              TextEditingController(text: model.lastCoralStation.name);
-        }
 
-        if (wasNull) {
-          model.refresh();
+          if (wasNull) {
+            model.refresh();
+          }
         }
 
         double angle;
