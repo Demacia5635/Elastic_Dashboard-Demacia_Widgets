@@ -71,11 +71,9 @@ class ReefModel extends MultiTopicNTWidgetModel {
   }
 
   TextEditingController? levelController;
-  TextEditingController? coralStationController;
   TextEditingController? reefController;
 
   SAVED_LEVEL lastSavedLevel = SAVED_LEVEL.L3_LEFT;
-  SAVED_CORAL_STATION lastCoralStation = SAVED_CORAL_STATION.LEFT;
   SAVED_REEF lastReef = SAVED_REEF.A;
 
   double lastPositon = 0;
@@ -184,34 +182,6 @@ class ReefModel extends MultiTopicNTWidgetModel {
       ntConnection.updateDataFromTopic(_positionTopic!, lastPositon.toDouble());
     }
   }
-
-  void chooseCoralStation(SAVED_CORAL_STATION coralStation) {
-    hasFeed = true;
-    lastCoralStation = coralStation;
-    coralStationController?.text = coralStation.name;
-
-    _positionTopic ??= ntConnection.getTopicFromName(positionTopic);
-    _elementPositionTopic ??=
-        ntConnection.getTopicFromName(elementPositionTopic);
-    _levelTopic ??= ntConnection.getTopicFromName(levelTopic);
-
-    if (positionTopic == null ||
-        elementPositionTopic == null ||
-        levelTopic == null) {
-      return;
-    }
-
-    // if (publishTopic) {
-    ntConnection.publishTopic(_positionTopic!);
-    ntConnection.publishTopic(_elementPositionTopic!);
-    ntConnection.publishTopic(_levelTopic!);
-    // }
-
-    ntConnection.updateDataFromTopic(
-        _positionTopic!, coralStation == SAVED_CORAL_STATION.LEFT ? 6.0 : 7.0);
-    ntConnection.updateDataFromTopic(_elementPositionTopic!, 3.0);
-    ntConnection.updateDataFromTopic(_levelTopic!, 2.0);
-  }
 }
 
 class ReefWidget extends NTWidget {
@@ -246,22 +216,14 @@ class ReefWidget extends NTWidget {
           LEVEL level = LEVEL.values.elementAt(levelValue);
 
           bool wasNull = model.levelController == null ||
-              model.coralStationController == null ||
               model.reefController == null;
 
           if (fieldPosition == POSITION.FEEDER_LEFT ||
               fieldPosition == POSITION.FEEDER_RIGHT) {
             model.reefController ??=
-                TextEditingController(text: model.lastCoralStation.name);
+                TextEditingController(text: "LEFT");
             model.levelController ??=
                 TextEditingController(text: model.lastSavedLevel.name);
-            if (fieldPosition == POSITION.FEEDER_LEFT) {
-              model.coralStationController ??=
-                  TextEditingController(text: SAVED_CORAL_STATION.LEFT.name);
-            } else {
-              model.coralStationController ??=
-                  TextEditingController(text: SAVED_CORAL_STATION.RIGHT.name);
-            }
           } else {
             model.reefController =
                 TextEditingController(text: fieldPosition.name);
@@ -275,8 +237,6 @@ class ReefWidget extends NTWidget {
                         : level == LEVEL.L2
                             ? "L2_RIGHT"
                             : "L3_RIGHT");
-            model.coralStationController =
-                TextEditingController(text: model.lastCoralStation.name);
           }
 
           if (wasNull) {
@@ -310,15 +270,6 @@ class ReefWidget extends NTWidget {
                 "assets/reef/levelSelector/${model.levelController!.text}.png");
           } catch (e) {
             return Image.asset("assets/reef/LevelSelector.png");
-          }
-        }
-
-        Image coralStationImage() {
-          try {
-            return Image.asset(
-                "assets/reef/coralStationSelector/${model.coralStationController!.text}.png");
-          } catch (e) {
-            return Image.asset("assets/reef/CoralStationSelector.png");
           }
         }
 
@@ -467,31 +418,6 @@ class ReefWidget extends NTWidget {
                 child: levelImage(),
               ),
             ),
-            Column(
-              children: [
-                Container(
-                  margin: const EdgeInsets.only(top: 20, bottom: 20),
-                  child: Text(
-                      "${model.reefController?.text} \n ${model.levelController?.text} \n ${model.coralStationController?.text}"),
-                ),
-                GestureDetector(
-                  onTapDown: (details) => {
-                    if (details.localPosition.dx > 50)
-                      {
-                        model.chooseCoralStation(SAVED_CORAL_STATION.RIGHT),
-                      }
-                    else
-                      {
-                        model.chooseCoralStation(SAVED_CORAL_STATION.LEFT),
-                      }
-                  },
-                  child: Container(
-                    // margin: const EdgeInsets.only(right: 1,
-                    child: coralStationImage(),
-                  ),
-                ),
-              ],
-            )
           ],
         );
       },
@@ -518,8 +444,6 @@ enum ELEMENT_POSITON {
 }
 
 enum LEVEL { L2, L3, FEEDER, ALGAE_BOTTOM, ALGAE_TOP }
-
-enum SAVED_CORAL_STATION { LEFT, RIGHT }
 
 enum SAVED_LEVEL {
   L1,
