@@ -117,9 +117,7 @@ class ReefModel extends MultiTopicNTWidgetModel {
   }
 
   void chooseLevel(SAVED_LEVEL level) {
-    if (level == SAVED_LEVEL.L1) {
-      level = SAVED_LEVEL.L2_LEFT;
-    } else if (level == SAVED_LEVEL.L4_LEFT) {
+    if (level == SAVED_LEVEL.L4_LEFT) {
       level = SAVED_LEVEL.L3_LEFT;
     } else if (level == SAVED_LEVEL.L4_RIGHT) {
       level = SAVED_LEVEL.L3_RIGHT;
@@ -148,27 +146,27 @@ class ReefModel extends MultiTopicNTWidgetModel {
     // }
 
     double elementPositionData = switch (level) {
-      SAVED_LEVEL.L1 => 1,
-      SAVED_LEVEL.L2_RIGHT => 1,
-      SAVED_LEVEL.L2_LEFT => 0,
-      SAVED_LEVEL.L3_RIGHT => 1,
-      SAVED_LEVEL.L3_LEFT => 0,
-      SAVED_LEVEL.L4_RIGHT => 1,
-      SAVED_LEVEL.L4_LEFT => 0,
-      SAVED_LEVEL.ALGAE_BOTTOM => 2,
-      SAVED_LEVEL.ALGAE_TOP => 2,
+      SAVED_LEVEL.L1 => 0,
+      SAVED_LEVEL.L2_RIGHT => 2,
+      SAVED_LEVEL.L2_LEFT => 1,
+      SAVED_LEVEL.L3_RIGHT => 2,
+      SAVED_LEVEL.L3_LEFT => 1,
+      SAVED_LEVEL.L4_RIGHT => 2,
+      SAVED_LEVEL.L4_LEFT => 1,
+      SAVED_LEVEL.ALGAE_BOTTOM => 3,
+      SAVED_LEVEL.ALGAE_TOP => 3,
     };
 
     double levelData = switch (level) {
       SAVED_LEVEL.L1 => 0,
-      SAVED_LEVEL.L2_RIGHT => 0,
-      SAVED_LEVEL.L2_LEFT => 0,
-      SAVED_LEVEL.L3_RIGHT => 1,
-      SAVED_LEVEL.L3_LEFT => 1,
-      SAVED_LEVEL.L4_RIGHT => 1,
-      SAVED_LEVEL.L4_LEFT => 1,
-      SAVED_LEVEL.ALGAE_BOTTOM => 3,
-      SAVED_LEVEL.ALGAE_TOP => 4,
+      SAVED_LEVEL.L2_RIGHT => 1,
+      SAVED_LEVEL.L2_LEFT => 1,
+      SAVED_LEVEL.L3_RIGHT => 2,
+      SAVED_LEVEL.L3_LEFT => 2,
+      SAVED_LEVEL.L4_RIGHT => 2,
+      SAVED_LEVEL.L4_LEFT => 2,
+      SAVED_LEVEL.ALGAE_BOTTOM => 4,
+      SAVED_LEVEL.ALGAE_TOP => 5,
     };
 
     ntConnection.updateDataFromTopic(
@@ -228,7 +226,7 @@ class ReefWidget extends NTWidget {
             model.reefController =
                 TextEditingController(text: fieldPosition.name);
             model.levelController = TextEditingController(
-                text: elementPosition == ELEMENT_POSITON.ALGEA
+                text: elementPosition == ELEMENT_POSITON.ALGEA || elementPosition == ELEMENT_POSITON.CORAL_MIDDLE
                     ? level.name
                     : elementPosition == ELEMENT_POSITON.CORAL_LEFT
                         ? level == LEVEL.L2
@@ -437,13 +435,14 @@ enum POSITION {
 }
 
 enum ELEMENT_POSITON {
+  CORAL_MIDDLE,
   CORAL_LEFT,
   CORAL_RIGTH,
   ALGEA,
   FEEDER,
 }
 
-enum LEVEL { L2, L3, FEEDER, ALGAE_BOTTOM, ALGAE_TOP }
+enum LEVEL { L1, L2, L3, FEEDER, ALGAE_BOTTOM, ALGAE_TOP }
 
 enum SAVED_LEVEL {
   L1,
