@@ -309,7 +309,7 @@ class CameraStreamWidget extends NTWidget {
 
         bool createNewWidget = model.controller == null;
 
-        String stream = model.getUrlWithParameters(streams.last);
+        String stream = model.getUrlWithParameters(streams.first);
 
         createNewWidget =
             createNewWidget || (model.controller?.stream != stream);
