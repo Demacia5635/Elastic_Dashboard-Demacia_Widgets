@@ -146,13 +146,13 @@ class ReefModel extends MultiTopicNTWidgetModel {
     // }
 
     double elementPositionData = switch (level) {
-      SAVED_LEVEL.L1 => 0,
+      SAVED_LEVEL.L1 => 1,
       SAVED_LEVEL.L2_RIGHT => 2,
-      SAVED_LEVEL.L2_LEFT => 1,
+      SAVED_LEVEL.L2_LEFT => 0,
       SAVED_LEVEL.L3_RIGHT => 2,
-      SAVED_LEVEL.L3_LEFT => 1,
+      SAVED_LEVEL.L3_LEFT => 0,
       SAVED_LEVEL.L4_RIGHT => 2,
-      SAVED_LEVEL.L4_LEFT => 1,
+      SAVED_LEVEL.L4_LEFT => 0,
       SAVED_LEVEL.ALGAE_BOTTOM => 3,
       SAVED_LEVEL.ALGAE_TOP => 3,
     };
@@ -435,11 +435,13 @@ enum POSITION {
 }
 
 enum ELEMENT_POSITON {
-  CORAL_MIDDLE,
   CORAL_LEFT,
+  CORAL_MIDDLE,
   CORAL_RIGTH,
   ALGEA,
-  FEEDER,
+  FEEDER_LEFT,
+  FEEDER_MIDDLE,
+  FEEDER_RIGHT,
 }
 
 enum LEVEL { L1, L2, L3, FEEDER, ALGAE_BOTTOM, ALGAE_TOP }
