@@ -177,9 +177,9 @@ class NTWidgetBuilder {
         model: MotionMagicConfigModel.new,
         widget: MotionMagicConfigWidget.new,
         fromJson: MotionMagicConfigModel.fromJson,
-        minWidth: _normalSize * 5,
+        minWidth: _normalSize * 2,
         minHeight: _normalSize * 3,
-        defaultWidth: 5,
+        defaultWidth: 2,
         defaultHeight: 3);
 
     register(
