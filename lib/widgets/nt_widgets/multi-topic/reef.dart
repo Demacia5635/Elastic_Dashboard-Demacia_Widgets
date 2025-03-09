@@ -123,6 +123,10 @@ class ReefModel extends MultiTopicNTWidgetModel {
       level = SAVED_LEVEL.L3_RIGHT;
     }
 
+    if (level == SAVED_LEVEL.L1) {
+      level = SAVED_LEVEL.L2_LEFT;
+    }
+
     lastSavedLevel = level;
     levelController?.text = level.name;
 
