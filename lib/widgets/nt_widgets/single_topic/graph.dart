@@ -6,6 +6,7 @@ import 'package:dot_cast/dot_cast.dart';
 import 'package:provider/provider.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 
+import 'package:elastic_dashboard/services/log.dart';
 import 'package:elastic_dashboard/services/nt4_client.dart';
 import 'package:elastic_dashboard/services/text_formatter_builder.dart';
 import 'package:elastic_dashboard/widgets/dialog_widgets/dialog_color_picker.dart';
@@ -21,6 +22,9 @@ class GraphModel extends SingleTopicNTWidgetModel {
   double? _maxValue;
   late Color _mainColor;
   late double _lineWidth;
+  bool enableScrolling = true;
+  int maxHistoricalPoints = 2000;
+  double maxTime = 2.5 * 60 * 1e6;
 
   double get timeDisplayed => _timeDisplayed;
 
@@ -69,6 +73,8 @@ class GraphModel extends SingleTopicNTWidgetModel {
     double? maxValue,
     Color mainColor = Colors.cyan,
     double lineWidth = 2.0,
+    int maxHistoricalPoints = 2000,
+    double maxTime = 2.5 * 60 * 1e6,
     super.dataType,
     super.period,
   })  : _timeDisplayed = timeDisplayed,
@@ -88,8 +94,11 @@ class GraphModel extends SingleTopicNTWidgetModel {
         5.0;
     _minValue = tryCast(jsonData['min_value']);
     _maxValue = tryCast(jsonData['max_value']);
-    _mainColor = Color(tryCast(jsonData['color']) ?? Colors.cyan.value);
+    _mainColor = Color(tryCast(jsonData['color']) ?? Colors.cyan.toARGB32());
     _lineWidth = tryCast(jsonData['line_width']) ?? 2.0;
+    enableScrolling = tryCast(jsonData['enable_scrolling']) ?? true;
+    maxHistoricalPoints = tryCast(jsonData['max_historical_points']) ?? 2000;
+    maxTime = tryCast(jsonData['max_time']) ?? 2.5 * 60 * 1e6;
   }
 
   @override
@@ -99,14 +108,18 @@ class GraphModel extends SingleTopicNTWidgetModel {
       'time_displayed': _timeDisplayed,
       if (_minValue != null) 'min_value': _minValue,
       if (_maxValue != null) 'max_value': _maxValue,
-      'color': _mainColor.value,
+      'color': _mainColor.toARGB32(),
       'line_width': _lineWidth,
+      'enable_scrolling': enableScrolling,
+      'max_historical_points': maxHistoricalPoints,
+      'max_time': maxTime,
     };
   }
 
   @override
   List<Widget> getEditProperties(BuildContext context) {
     return [
+      // First row: Color and Time Displayed
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         mainAxisSize: MainAxisSize.max,
@@ -139,6 +152,8 @@ class GraphModel extends SingleTopicNTWidgetModel {
         ],
       ),
       const SizedBox(height: 5),
+
+      // Second row: Min, Max, Line Width
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         mainAxisSize: MainAxisSize.max,
@@ -199,6 +214,39 @@ class GraphModel extends SingleTopicNTWidgetModel {
           ),
         ],
       ),
+      const SizedBox(height: 5),
+
+      // Third row: Enable Scrolling and Max Historical Points
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          Flexible(
+            child: CheckboxListTile(
+              title: const Text('Enable Time Scrolling'),
+              value: enableScrolling,
+              onChanged: (value) {
+                enableScrolling = value ?? true;
+                refresh();
+              },
+            ),
+          ),
+          Flexible(
+            child: DialogTextInput(
+              onSubmit: (value) {
+                int? newMax = int.tryParse(value);
+                if (newMax == null || newMax < 100) {
+                  return;
+                }
+                maxHistoricalPoints = newMax;
+                refresh();
+              },
+              formatter: TextFormatterBuilder.decimalTextFormatter(),
+              label: 'Max Historical Points',
+              initialText: maxHistoricalPoints.toString(),
+            ),
+          ),
+        ],
+      ),
     ];
   }
 }
@@ -226,6 +274,9 @@ class GraphWidget extends NTWidget {
       mainColor: model.mainColor,
       minValue: model.minValue,
       maxValue: model.maxValue,
+      enableScrolling: model.enableScrolling,
+      maxHistoricalPoints: model.maxHistoricalPoints,
+      maxTime: model.maxTime,
     );
   }
 }
@@ -242,10 +293,13 @@ class _GraphWidgetGraph extends StatefulWidget {
 
   final List<_GraphPoint> _currentData;
 
-  set currentData(List<_GraphPoint> data) {
-    _currentData.clear();
-    _currentData.addAll(data);
-  }
+  final int maxHistoricalPoints;
+  final bool enableScrolling;
+  final double maxTime;
+
+  set currentData(List<_GraphPoint> data) => _currentData
+    ..clear()
+    ..addAll(data);
 
   const _GraphWidgetGraph({
     required this.initialData,
@@ -253,6 +307,9 @@ class _GraphWidgetGraph extends StatefulWidget {
     required this.timeDisplayed,
     required this.mainColor,
     required this.lineWidth,
+    required this.enableScrolling,
+    required this.maxHistoricalPoints,
+    required this.maxTime,
     this.minValue,
     this.maxValue,
   }) : _currentData = initialData;
@@ -265,27 +322,37 @@ class _GraphWidgetGraph extends StatefulWidget {
   State<_GraphWidgetGraph> createState() => _GraphWidgetGraphState();
 }
 
-class _GraphWidgetGraphState extends State<_GraphWidgetGraph> {
+class _GraphWidgetGraphState extends State<_GraphWidgetGraph>
+    with WidgetsBindingObserver {
   ChartSeriesController? _seriesController;
   late List<_GraphPoint> _graphData;
+  late List<_GraphPoint> _allHistoricalData;
   StreamSubscription<Object?>? _subscriptionListener;
+
+  // Time scrolling variables
+  double _timeScrollPosition = 0.0;
+  bool _isLiveMode = true;
+  Timer? _liveUpdateTimer;
 
   @override
   void initState() {
     super.initState();
 
-    _graphData = widget.initialData.toList();
+    WidgetsBinding.instance.addObserver(this);
 
-    if (_graphData.isEmpty) {
-      // This could cause data to be displayed slightly off if the time is 12:00 am on January 1st, 1970.
-      // However if that were the case, then the user would either have secretly invented a modern 64 bit
-      // operating system that can't even run on hardware from their time, or they invented time travel,
-      // which according to the second law of thermodynamics is literally impossible. In summary, this
-      // won't be causing issues unless if the user finds a way of violating the laws of thermodynamics,
-      // or for some reason they change their time on their device
-      _graphData.add(_GraphPoint(x: 0, y: widget.minValue ?? 0.0));
-    } else if (_graphData.length > 1) {
-      _graphData.removeLast();
+    _graphData = List.of(widget.initialData);
+    _allHistoricalData = List.of(widget.initialData);
+
+    if (_graphData.length < 2) {
+      final double x = DateTime.now().microsecondsSinceEpoch.toDouble();
+      final double y =
+          tryCast(widget.subscription?.value) ?? widget.minValue ?? 0.0;
+
+      _graphData = [
+        _GraphPoint(x: x - widget.timeDisplayed * 1e6, y: y),
+        _GraphPoint(x: x, y: y),
+      ];
+      _allHistoricalData = List.of(_graphData);
     }
 
     widget.currentData = _graphData;
@@ -295,8 +362,9 @@ class _GraphWidgetGraphState extends State<_GraphWidgetGraph> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _subscriptionListener?.cancel();
-
+    _liveUpdateTimer?.cancel();
     super.dispose();
   }
 
@@ -311,74 +379,145 @@ class _GraphWidgetGraphState extends State<_GraphWidgetGraph> {
     super.didUpdateWidget(oldWidget);
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (widget.subscription?.value == null) {
+      return;
+    }
+    if (state == AppLifecycleState.resumed) {
+      logger.debug(
+        "State resumed, refreshing graph for ${widget.subscription?.topic}",
+      );
+      setState(() {});
+    }
+  }
+
   void _resetGraphData() {
-    int oldLength = _graphData.length;
+    final double x = DateTime.now().microsecondsSinceEpoch.toDouble();
+    final double y = tryCast<num>(widget.subscription?.value)?.toDouble() ??
+        widget.minValue ??
+        0.0;
 
-    _graphData.clear();
-    _graphData.add(_GraphPoint(x: 0, y: widget.minValue ?? 0.0));
+    setState(() {
+      _graphData
+        ..clear()
+        ..addAll([
+          _GraphPoint(
+            x: x - widget.timeDisplayed * 1e6,
+            y: y,
+          ),
+          _GraphPoint(x: x, y: y),
+        ]);
 
-    _seriesController?.updateDataSource(
-      removedDataIndexes: List.generate(oldLength, (index) => index),
-      addedDataIndex: 0,
-    );
+      _allHistoricalData = List.of(_graphData);
+      _timeScrollPosition = 0.0;
+      _isLiveMode = true;
+
+      widget.currentData = _graphData;
+    });
   }
 
   void _initializeListener() {
     _subscriptionListener?.cancel();
     _subscriptionListener =
         widget.subscription?.periodicStream(yieldAll: true).listen((data) {
-      if (_seriesController == null) {
-        return;
-      }
       if (data != null) {
-        List<int> addedIndexes = [];
-        List<int> removedIndexes = [];
+        final double time = DateTime.now().microsecondsSinceEpoch.toDouble();
+        final double y =
+            tryCast<num>(data)?.toDouble() ?? widget.minValue ?? 0.0;
 
-        double currentTime = DateTime.now().microsecondsSinceEpoch.toDouble();
+        final _GraphPoint newPoint = _GraphPoint(x: time, y: y);
 
-        _graphData.add(_GraphPoint(x: currentTime, y: tryCast(data) ?? 0.0));
+        _allHistoricalData.add(newPoint);
 
-        int indexOffset = 0;
+        final double maxTimeInMicroseconds = 2.5 * 60 * 1e6;
+        final double cutoffTime = time - maxTimeInMicroseconds;
 
-        while (currentTime - _graphData[0].x > widget.timeDisplayed * 1e6 &&
-            _graphData.length > 1) {
-          _graphData.removeAt(0);
-          removedIndexes.add(indexOffset++);
+        _allHistoricalData.removeWhere((point) => point.x < cutoffTime);
+
+        // Update visible data only if in live mode
+        if (_isLiveMode) {
+          _updateVisibleData();
         }
-
-        int existingIndex = _graphData.indexWhere((e) => e.x == currentTime);
-        while (existingIndex != -1 &&
-            existingIndex != _graphData.length - 1 &&
-            _graphData.length > 1) {
-          removedIndexes.add(existingIndex + indexOffset++);
-          _graphData.removeAt(existingIndex);
-
-          existingIndex = _graphData.indexWhere((e) => e.x == currentTime);
-        }
-
-        if (_graphData.last.x - _graphData.first.x <
-            widget.timeDisplayed * 1e6) {
-          _graphData.insert(
-              0,
-              _GraphPoint(
-                x: _graphData.last.x - widget.timeDisplayed * 1e6,
-                y: _graphData.first.y,
-              ));
-          addedIndexes.add(0);
-        }
-
-        addedIndexes.add(_graphData.length - 1);
-
-        _seriesController?.updateDataSource(
-          addedDataIndexes: addedIndexes,
-          removedDataIndexes: removedIndexes,
-        );
-      } else if (_graphData.length > 1) {
+      } else if (_graphData.length > 2) {
         _resetGraphData();
       }
 
       widget.currentData = _graphData;
     });
+  }
+
+  void _updateVisibleData() {
+    if (_allHistoricalData.isEmpty) return;
+
+    final double currentTime = DateTime.now().microsecondsSinceEpoch.toDouble();
+    final double timeWindow = widget.timeDisplayed * 1e6;
+
+    double windowEndTime;
+    if (_isLiveMode) {
+      windowEndTime = currentTime;
+    } else {
+      // Calculate the end time based on scroll position
+      final double oldestTime = _allHistoricalData.first.x;
+      final double newestTime = _allHistoricalData.last.x;
+      final double totalTimeSpan = newestTime - oldestTime;
+
+      if (totalTimeSpan <= timeWindow) {
+        windowEndTime = newestTime;
+      } else {
+        windowEndTime =
+            newestTime - (_timeScrollPosition * (totalTimeSpan - timeWindow));
+      }
+    }
+
+    final double windowStartTime = windowEndTime - timeWindow;
+
+    // Filter data within the time window
+    final List<_GraphPoint> filteredData = _allHistoricalData
+        .where(
+            (point) => point.x >= windowStartTime && point.x <= windowEndTime)
+        .toList();
+
+    if (filteredData.isEmpty) return;
+
+    final List<_GraphPoint> displayData = List.of(filteredData);
+
+    if (displayData.first.x > windowStartTime) {
+      displayData.insert(
+          0,
+          _GraphPoint(
+            x: windowStartTime,
+            y: displayData.first.y,
+          ));
+    }
+
+    if (displayData.last.x < windowEndTime) {
+      displayData.add(_GraphPoint(
+        x: windowEndTime,
+        y: displayData.last.y,
+      ));
+    }
+
+    setState(() {
+      _graphData = displayData;
+    });
+  }
+
+  void _onTimeScrollChanged(double value) {
+    setState(() {
+      _timeScrollPosition = value;
+      _isLiveMode = value == 0.0;
+    });
+
+    _updateVisibleData();
+  }
+
+  void _goToLiveMode() {
+    setState(() {
+      _timeScrollPosition = 0.0;
+      _isLiveMode = true;
+    });
+    _updateVisibleData();
   }
 
   List<FastLineSeries<_GraphPoint, num>> _getChartData() {
@@ -406,17 +545,106 @@ class _GraphWidgetGraphState extends State<_GraphWidgetGraph> {
 
   @override
   Widget build(BuildContext context) {
-    return SfCartesianChart(
-      series: _getChartData(),
-      margin: const EdgeInsets.only(top: 8.0),
-      primaryXAxis: NumericAxis(
-        labelStyle: const TextStyle(color: Colors.transparent),
-        desiredIntervals: 5,
-      ),
-      primaryYAxis: NumericAxis(
-        minimum: widget.minValue,
-        maximum: widget.maxValue,
-      ),
+    return Column(
+      children: [
+        // Chart
+        Expanded(
+          child: SfCartesianChart(
+            zoomPanBehavior: ZoomPanBehavior(
+              enablePanning: true,
+              enablePinching: true,
+              zoomMode: ZoomMode.x,
+            ),
+            series: _getChartData(),
+            margin: const EdgeInsets.only(top: 8.0),
+            primaryXAxis: NumericAxis(
+              labelStyle: const TextStyle(color: Colors.transparent),
+              desiredIntervals: 5,
+            ),
+            primaryYAxis: NumericAxis(
+              minimum: widget.minValue,
+              maximum: widget.maxValue,
+            ),
+          ),
+        ),
+
+        // Time scrolling controls (only show if scrolling is enabled AND there's enough space)
+        if (widget.enableScrolling && _allHistoricalData.isNotEmpty)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              // Only show controls if there's at least 80 pixels of height available
+              if (constraints.maxHeight >= 80) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 2),
+                    Container(
+                      height: 32,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 1, vertical: 1),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.history, size: 10),
+                          Expanded(
+                            child: Slider(
+                              value: _timeScrollPosition,
+                              min: 0.0,
+                              max: 1.0,
+                              divisions: 100,
+                              onChanged: _onTimeScrollChanged,
+                            ),
+                          ),
+                          SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: IconButton(
+                              icon: const Icon(Icons.skip_next),
+                              onPressed: _goToLiveMode,
+                              tooltip: 'Go to Live',
+                              iconSize: 10,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      height: 12,
+                      padding: const EdgeInsets.symmetric(horizontal: 1),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                            decoration: BoxDecoration(
+                              color: _isLiveMode
+                                  ? Colors.green.shade100
+                                  : Colors.orange.shade100,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                            child: Text(
+                              _isLiveMode ? 'LIVE' : 'HIST',
+                              style: TextStyle(
+                                fontSize: 6,
+                                color: _isLiveMode
+                                    ? Colors.green.shade800
+                                    : Colors.orange.shade800,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              } else {
+                return const SizedBox.shrink();
+              }
+            },
+          ),
+      ],
     );
   }
 }

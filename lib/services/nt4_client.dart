@@ -9,7 +9,6 @@ import 'package:flutter/foundation.dart';
 
 import 'package:collection/collection.dart';
 import 'package:dot_cast/dot_cast.dart';
-import 'package:messagepack/messagepack.dart';
 import 'package:msgpack_dart/msgpack_dart.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -249,6 +248,9 @@ class NT4Topic {
     return NT4TypeStr.typeMap[type]!;
   }
 
+  bool get isRetained =>
+      properties.containsKey('retained') && properties['retained'];
+
   bool get isPersistent =>
       properties.containsKey('persistent') && properties['persistent'];
 }
@@ -416,9 +418,10 @@ class NT4Client {
 
     // If there are no other subscriptions that are in the same table/tree
     if (!_subscribedTopics.any((element) =>
-        element.topic.startsWith('${sub.topic}/') ||
-        sub.topic.startsWith('${element.topic}/') ||
-        sub.topic == element.topic)) {
+        element.topic.isNotEmpty &&
+        (element.topic.startsWith('${sub.topic}/') ||
+            sub.topic.startsWith('${element.topic}/') ||
+            sub.topic == element.topic))) {
       // If there are any topics associated with the table/tree, unpublish them
       for (NT4Topic topic in _clientPublishedTopics.values.where((element) =>
           element.name.startsWith('${sub.topic}/') ||
@@ -452,15 +455,26 @@ class NT4Client {
     return _clientPublishedTopics.containsValue(topic);
   }
 
-  NT4Topic publishNewTopic(String name, String type) {
-    NT4Topic newTopic = NT4Topic(name: name, type: type, properties: {});
+  NT4Topic publishNewTopic(
+    String name,
+    String type, [
+    Map<String, dynamic> properties = const {},
+  ]) {
+    NT4Topic newTopic = NT4Topic(
+      name: name,
+      type: type,
+      properties: properties,
+    );
     publishTopic(newTopic);
     return newTopic;
   }
 
   void publishTopic(NT4Topic topic) {
     if (_clientPublishedTopics.containsKey(topic.name)) {
-      topic.pubUID = _clientPublishedTopics[topic.name]!.pubUID;
+      NT4Topic existing = _clientPublishedTopics[topic.name]!;
+      topic.pubUID = existing.pubUID;
+      existing.properties.addAll(topic.properties);
+      _wsSetProperties(existing);
       return;
     }
     logger.trace('Publishing topic: $topic');
@@ -468,6 +482,7 @@ class NT4Client {
     topic.pubUID = getNewPubUID();
     _clientPublishedTopics[topic.name] = topic;
     _wsPublish(topic);
+    _wsSetProperties(topic);
   }
 
   void unpublishTopic(NT4Topic topic) {
@@ -544,7 +559,7 @@ class NT4Client {
     int rxTime = _getClientTimeUS();
 
     int rtt = rxTime - clientTimestamp;
-    int serverTimeAtRx = (serverTimestamp - rtt / 2.0).round();
+    int serverTimeAtRx = serverTimestamp + rtt ~/ 2;
     _serverTimeOffsetUS = serverTimeAtRx - rxTime;
 
     _lastPongTime = rxTime;
@@ -773,11 +788,11 @@ class NT4Client {
           _onFirstMessageReceived();
         }
 
-        if (data is! List<int>) {
+        if (data is! Uint8List) {
           return;
         }
 
-        var msg = Unpacker.fromList(data).unpackList();
+        var msg = deserialize(data);
 
         int topicID = msg[0] as int;
         int timestampUS = msg[1] as int;
@@ -959,13 +974,13 @@ class NT4Client {
           return;
         }
       }
-    } else {
-      var u = Unpacker.fromList(data);
+    } else if (data is Uint8List) {
+      final decoder = Deserializer(data);
 
       bool done = false;
       while (!done) {
         try {
-          var msg = u.unpackList();
+          var msg = decoder.decode();
 
           int topicID = msg[0] as int;
           int timestampUS = msg[1] as int;
@@ -990,6 +1005,10 @@ class NT4Client {
           done = true;
         }
       }
+    } else {
+      logger.warning(
+        '[NT4] Ignoring websocket message, invalid type: ${data.runtimeType}',
+      );
     }
   }
 
