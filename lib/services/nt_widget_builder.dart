@@ -1,3 +1,5 @@
+import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/Training.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/lookUpTableWidget.dart';
 import 'package:flutter/material.dart';
 
 import 'package:dot_cast/dot_cast.dart';
@@ -106,10 +108,28 @@ class NTWidgetBuilder {
         minHeight: _normalSize * 2);
 
     register(
+        name: rollingNumberButtonWidget.widgetType,
+        model: rollingNumberButtonModel.new,
+        widget: rollingNumberButtonWidget.new,
+        fromJson: rollingNumberButtonModel.fromJson);
+
+    register(
         name: MatchTimeWidget.widgetType,
         model: MatchTimeModel.new,
         widget: MatchTimeWidget.new,
         fromJson: MatchTimeModel.fromJson);
+
+    register(
+      name: LookUpTableWidget.widgetType,
+      model: LookUpTableModel.new,
+      widget: LookUpTableWidget.new,
+      fromJson: LookUpTableModel.fromJson,
+      minWidth: _normalSize * 2,
+      minHeight: _normalSize * 2,
+      defaultWidth: 2,
+      defaultHeight: 2,
+    );
+
 
     register(
         name: NumberBar.widgetType,
