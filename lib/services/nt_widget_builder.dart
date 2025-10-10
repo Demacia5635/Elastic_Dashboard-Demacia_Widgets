@@ -1,3 +1,4 @@
+import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/vector.dart';
 import 'package:flutter/material.dart';
 
 import 'package:dot_cast/dot_cast.dart';
@@ -96,6 +97,17 @@ class NTWidgetBuilder {
         model: BooleanBoxModel.new,
         widget: BooleanBox.new,
         fromJson: BooleanBoxModel.fromJson);
+
+    register(
+      name: Vector.widgetType,
+      model: VectorModel.new,
+      widget: Vector.new,
+      fromJson: VectorModel.fromJson,
+      minHeight: _normalSize * 2,
+      minWidth: _normalSize * 2,
+      defaultHeight: 2,
+      defaultWidth: 2,
+    );
 
     register(
         name: GraphWidget.widgetType,
