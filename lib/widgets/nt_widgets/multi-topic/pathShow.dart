@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class Pathshow extends CustomPainter {
-  final List<Offset> pathPoints;
+  final List<O  ffset> pathPoints;
   final Offset? currentMousePoint;
   final double metersToPixels;
   final double scaleReduction;
