@@ -4,6 +4,7 @@ import 'dart:io';
 
 //import 'package:elastic_dashboard/services/nt4_client.dart';
 import 'package:elastic_dashboard/services/nt4_client.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -112,6 +113,12 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
   late final ElasticLibListener _robotNotificationListener;
   late final UpdateChecker _updateChecker;
   late final ElasticLayoutDownloader _layoutDownloader;
+
+  // playback
+  bool isPlaying = false;
+  int playbackIndex = 0;
+  List<Map<String, dynamic>> playbackData = [];
+
 
   bool _seenShuffleboardWarning = false;
   bool isRecording = false;
@@ -355,7 +362,7 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
 
   Future<File> get _localFile async {
     final path = await _localPath;
-    return File('$path/recording.csv');
+    return File('$path/recording.json');
   }
 
   void _captureSnapshot() {
@@ -501,6 +508,53 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
     // Also listen for new topics that get announced during recording
     widget.ntConnection.addTopicAnnounceListener(_onNewTopicDuringRecording);
   }
+
+  //playback
+
+  Future<void> loadPlaybackDataFromFile(String filePath) async {
+    final file = File(filePath);
+    final jsonString = await file.readAsString();
+    final Map<String, dynamic> recording = json.decode(jsonString);
+    // adjustment לפי מבנה הקובץ
+    playbackData = List<Map<String, dynamic>>.from(recording['data']);
+    playbackIndex = 0;
+  }
+
+  Future<void> startPlayback() async {
+    setState(() => isPlaying = true);
+    while (isPlaying && playbackIndex < playbackData.length) {
+      final current = playbackData[playbackIndex];
+      updateWidgetsFromPlayback(current); // מימוש בהמשך
+      if (playbackIndex + 1 < playbackData.length) {
+        final now = current['timestamp'] as int;
+        final next = playbackData[playbackIndex + 1]['timestamp'] as int;
+        int delay = next - now;
+        delay = delay < 0 ? 0 : delay;
+        await Future.delayed(Duration(milliseconds: delay));
+      }
+      playbackIndex++;
+    }
+    setState(() => isPlaying = false);
+  }
+
+  void pausePlayback() => setState(() => isPlaying = false);
+
+  // מימוש לעדכון ווידג'טים (יש להתאים לשימוש שלך)
+  void updateWidgetsFromPlayback(Map<String, dynamic> row) {
+    // לדוג' callback/שליחה ל-ntConnection וכו'
+  }
+
+  Future<String?> pickFile() async {
+  FilePickerResult? result = await FilePicker.platform.pickFiles(
+    type: FileType.custom,
+    allowedExtensions: ['json'],
+  );
+  if (result != null && result.files.single.path != null) {
+    return result.files.single.path!;
+  }
+  return null;
+}
+
 
   @override
   void onWindowClose() async {
@@ -2229,14 +2283,41 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
           'Help',
         ),
       ),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          IconButton(
+            onPressed: () {
+              setState(() {
+                _record();
+              });
+            },
+            icon: isRecording ? Icon(Icons.stop) : Icon(Icons.emergency_recording),
+          ),
 
-      IconButton(
-        onPressed: () {
-          setState(() {
-            _record();
-          });
-        },
-        icon: isRecording ? Icon(Icons.stop) : Icon(Icons.emergency_recording),
+          IconButton(
+            icon: isPlaying ? Icon(Icons.pause) : Icon(Icons.play_arrow),
+            onPressed: () {
+              if (isPlaying) {
+                pausePlayback();
+              } else if (playbackData.isNotEmpty) {
+                startPlayback();
+              }
+            },
+          ),
+
+          IconButton(
+            icon: Icon(Icons.folder_open),
+            tooltip: 'Open Recording File',
+            onPressed: () async {
+              String? path = await pickFile();
+              if (path != null) {
+                await loadPlaybackDataFromFile(path);
+              }
+            },
+          ),
+          
+        ]
       ),
     ];
 
