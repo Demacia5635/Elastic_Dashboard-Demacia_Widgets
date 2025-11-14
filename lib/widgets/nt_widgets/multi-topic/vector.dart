@@ -5,22 +5,12 @@ import 'package:elastic_dashboard/services/nt4_client.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/nt_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:vector_math/vector_math_64.dart' hide Colors;
 
 class VectorModel extends MultiTopicNTWidgetModel {
   String type = Vector.widgetType;
 
-  late NT4Subscription velXSub;
-  late NT4Subscription velYSub;
   late List<NT4Subscription> vectorsX;
   late List<NT4Subscription> vectorsY;
-  late NT4Subscription updateMotorSubscription;
-
-  @override
-  List<NT4Subscription> get subscriptions => [
-        ...vectorsX,
-        ...vectorsY,
-      ];
 
   VectorModel({
     required super.ntConnection,
@@ -35,10 +25,6 @@ class VectorModel extends MultiTopicNTWidgetModel {
     required super.preferences,
     required super.jsonData,
   }) : super.fromJson();
-
-  get velX => '$topic/X';
-  get velY => '$topic/Y';
-  get updateTopic => '$topic/Update';
 
   @override
   void initializeSubscriptions() {
@@ -245,6 +231,17 @@ class VectorPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant VectorPainter oldDelegate) {
-    return true;
+    if (vectors.length != oldDelegate) {
+      return true;
+    }
+    for (int i = 0; i < vectors.length; i++) {
+      if (oldDelegate.vectors[i].x != vectors[i].x) {
+        return true;
+      } else if (oldDelegate.vectors[i].y != vectors[i].y) {
+        return true;
+      }
+    }
+
+    return false;
   }
 }

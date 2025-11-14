@@ -2,9 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+//import 'package:elastic_dashboard/services/nt4_client.dart';
+import 'package:elastic_dashboard/services/nt4_client.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'package:collection/collection.dart';
 import 'package:dot_cast/dot_cast.dart';
@@ -111,6 +114,10 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
   late final ElasticLayoutDownloader _layoutDownloader;
 
   bool _seenShuffleboardWarning = false;
+  bool isRecording = false;
+  List<Map<String, dynamic>> recorder = [];
+  //Timer? _recordingTimer;
+  Map<String, NT4Subscription> _recordingSubscriptions = {};
 
   final List<TabData> _tabData = [];
 
@@ -339,6 +346,160 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
             notifyIfError: false,
           ));
     }
+  }
+
+  Future<String> get _localPath async {
+    final directory = await getApplicationDocumentsDirectory();
+    return directory.path;
+  }
+
+  Future<File> get _localFile async {
+    final path = await _localPath;
+    return File('$path/recording.csv');
+  }
+
+  void _captureSnapshot() {
+    Map<String, Object?> values = widget.ntConnection.getLastAnnouncedValues();
+    Map<String, int> timestamps =
+        widget.ntConnection.getLastAnnouncedTimestamps();
+    Map<int, NT4Topic> topics = widget.ntConnection.announcedTopics();
+
+    // Create a snapshot with all topic data
+    Map<String, dynamic> snapshot = {
+      'timestamp': widget.ntConnection.serverTime,
+      'topics': {},
+    };
+
+    // Add each topic's data
+    for (var topic in topics.values) {
+      if (values.containsKey(topic.name)) {
+        snapshot['topics'][topic.name] = {
+          'value': values[topic.name],
+          'timestamp': timestamps[topic.name],
+          'type': topic.type,
+        };
+      }
+    }
+
+    recorder.add(snapshot);
+  }
+
+  void _stopRecording() {
+    // Unsubscribe from all recording subscriptions
+    for (var sub in _recordingSubscriptions.values) {
+      widget.ntConnection.unSubscribe(sub);
+    }
+    _recordingSubscriptions.clear();
+
+    widget.ntConnection.removeTopicAnnounceListener(_onNewTopicDuringRecording);
+  }
+
+  Future<void> _saveRecording() async {
+    if (recorder.isEmpty) {
+      print('No data to save');
+      return;
+    }
+
+    try {
+      final file = await _localFile;
+
+      // Group by timestamp for easier analysis
+      Map<int, Map<String, dynamic>> groupedByTime = {};
+
+      for (var entry in recorder) {
+        int timestamp = entry['timestamp'];
+        if (!groupedByTime.containsKey(timestamp)) {
+          groupedByTime[timestamp] = {
+            'timestamp': timestamp,
+            'topics': {},
+          };
+        }
+
+        groupedByTime[timestamp]!['topics'][entry['topic']] = {
+          'value': entry['value'],
+          'type': entry['type'],
+        };
+      }
+
+      String jsonString = JsonEncoder.withIndent('  ').convert({
+        'recording_start': recorder.first['timestamp'],
+        'recording_end': recorder.last['timestamp'],
+        'sample_count': recorder.length,
+        'unique_timestamps': groupedByTime.length,
+        'data': groupedByTime.values.toList(),
+      });
+
+      await file.writeAsString(jsonString);
+      print('Recording saved to: ${file.path}');
+      print('Recorded ${recorder.length} data points');
+    } catch (e) {
+      print('Error saving recording: $e');
+    }
+  }
+
+  void _record() async {
+    isRecording = !isRecording;
+
+    if (isRecording) {
+      print('Started recording');
+      recorder.clear();
+      _startRecording();
+    } else {
+      print('Stopped recording');
+      _stopRecording();
+      await _saveRecording();
+    }
+  }
+
+  void _onNewTopicDuringRecording(NT4Topic topic) {
+    if (!isRecording || _recordingSubscriptions.containsKey(topic.name)) {
+      return;
+    }
+
+    NT4Subscription sub = widget.ntConnection.subscribe(topic.name, 0.05);
+    sub.listen((value, timestamp) {
+      if (isRecording) {
+        recorder.add({
+          'timestamp': timestamp,
+          'server_time': widget.ntConnection.serverTime,
+          'topic': topic.name,
+          'value': value,
+          'type': topic.type,
+        });
+      }
+    });
+
+    _recordingSubscriptions[topic.name] = sub;
+  }
+
+  void _startRecording() {
+    // Get all current topics
+    Map<int, NT4Topic> topics = widget.ntConnection.announcedTopics();
+
+    // Subscribe to each topic and listen for changes
+    for (var topic in topics.values) {
+      // Create a subscription for this topic
+      NT4Subscription sub =
+          widget.ntConnection.subscribe(topic.name, 0.05); // 50ms updates
+
+      // Listen to value changes
+      sub.listen((value, timestamp) {
+        if (isRecording) {
+          recorder.add({
+            'timestamp': timestamp,
+            'server_time': widget.ntConnection.serverTime,
+            'topic': topic.name,
+            'value': value,
+            'type': topic.type,
+          });
+        }
+      });
+
+      _recordingSubscriptions[topic.name] = sub;
+    }
+
+    // Also listen for new topics that get announced during recording
+    widget.ntConnection.addTopicAnnounceListener(_onNewTopicDuringRecording);
   }
 
   @override
@@ -2067,6 +2228,15 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
         child: const Text(
           'Help',
         ),
+      ),
+
+      IconButton(
+        onPressed: () {
+          setState(() {
+            _record();
+          });
+        },
+        icon: isRecording ? Icon(Icons.stop) : Icon(Icons.emergency_recording),
       ),
     ];
 

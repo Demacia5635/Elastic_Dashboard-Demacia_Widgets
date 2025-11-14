@@ -229,6 +229,14 @@ class NTConnection {
     return _ntClient.lastAnnouncedValues[topic];
   }
 
+  Map<String, Object?> getLastAnnouncedValues() {
+    return _ntClient.lastAnnouncedValues;
+  }
+
+  Map<String, int> getLastAnnouncedTimestamps() {
+    return _ntClient.lastAnnouncedTimestamps;
+  }
+
   void unpublishTopic(NT4Topic topic) {
     _ntClient.unpublishTopic(topic);
   }
