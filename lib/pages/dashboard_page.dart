@@ -348,41 +348,51 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
     }
   }
 
-  Future<String> get _localPath async {
-    final directory = await getApplicationDocumentsDirectory();
-    return directory.path;
+  // Future<String> get _localPath async {
+  //   final directory = await getApplicationDocumentsDirectory();
+  //   return directory.path;
+  // }
+
+  Future<Directory> get _directory async {
+    final directory = Directory("C:\\Recordings");
+    if (await directory.exists()) {
+      return directory;
+    } else {
+      final Directory createdDir = await directory.create(recursive: true);
+      return createdDir;
+    }
   }
 
   Future<File> get _localFile async {
-    final path = await _localPath;
+    final path = await _directory;
     return File('$path/recording.csv');
   }
 
-  void _captureSnapshot() {
-    Map<String, Object?> values = widget.ntConnection.getLastAnnouncedValues();
-    Map<String, int> timestamps =
-        widget.ntConnection.getLastAnnouncedTimestamps();
-    Map<int, NT4Topic> topics = widget.ntConnection.announcedTopics();
+  // void _captureSnapshot() {
+  //   Map<String, Object?> values = widget.ntConnection.getLastAnnouncedValues();
+  //   Map<String, int> timestamps =
+  //       widget.ntConnection.getLastAnnouncedTimestamps();
+  //   Map<int, NT4Topic> topics = widget.ntConnection.announcedTopics();
 
-    // Create a snapshot with all topic data
-    Map<String, dynamic> snapshot = {
-      'timestamp': widget.ntConnection.serverTime,
-      'topics': {},
-    };
+  //   // Create a snapshot with all topic data
+  //   Map<String, dynamic> snapshot = {
+  //     'timestamp': widget.ntConnection.serverTime,
+  //     'topics': {},
+  //   };
 
-    // Add each topic's data
-    for (var topic in topics.values) {
-      if (values.containsKey(topic.name)) {
-        snapshot['topics'][topic.name] = {
-          'value': values[topic.name],
-          'timestamp': timestamps[topic.name],
-          'type': topic.type,
-        };
-      }
-    }
+  //   // Add each topic's data
+  //   for (var topic in topics.values) {
+  //     if (values.containsKey(topic.name)) {
+  //       snapshot['topics'][topic.name] = {
+  //         'value': values[topic.name],
+  //         'timestamp': timestamps[topic.name],
+  //         'type': topic.type,
+  //       };
+  //     }
+  //   }
 
-    recorder.add(snapshot);
-  }
+  //   recorder.add(snapshot);
+  // }
 
   void _stopRecording() {
     // Unsubscribe from all recording subscriptions

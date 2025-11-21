@@ -35,12 +35,21 @@ class VectorModel extends MultiTopicNTWidgetModel {
     }
 
     for (int i = 0; i < 5; i++) {
-      vectorsX.add(
-        ntConnection.subscribe('$topic/Vector$i/X', super.period),
-      );
-      vectorsY.add(
-        ntConnection.subscribe('$topic/Vector$i/Y', super.period),
-      );
+      NT4Subscription subX =
+          ntConnection.subscribe('$topic/Vector$i/X', super.period);
+      NT4Subscription subY =
+          ntConnection.subscribe('$topic/Vector$i/Y', super.period);
+
+      subX.listen((value, timestamp) {
+        notifyListeners();
+      });
+
+      subY.listen((value, timestamp) {
+        notifyListeners();
+      });
+
+      vectorsX.add(subX);
+      vectorsY.add(subY);
     }
   }
 
@@ -231,17 +240,20 @@ class VectorPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant VectorPainter oldDelegate) {
-    if (vectors.length != oldDelegate) {
+    if (vectors.length != oldDelegate.vectors.length) {
+      print('another Vector popped!');
       return true;
     }
+    print('no new vector :(');
+
     for (int i = 0; i < vectors.length; i++) {
-      if (oldDelegate.vectors[i].x != vectors[i].x) {
-        return true;
-      } else if (oldDelegate.vectors[i].y != vectors[i].y) {
+      if (oldDelegate.vectors[i].x != vectors[i].x ||
+          oldDelegate.vectors[i].y != vectors[i].y) {
+        print('x|y changed');
         return true;
       }
     }
-
+    print('ntn changed');
     return false;
   }
 }
