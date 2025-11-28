@@ -1,3 +1,4 @@
+import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/chassis_speed.dart';
 import 'package:flutter/material.dart';
 
 import 'package:dot_cast/dot_cast.dart';
@@ -199,6 +200,17 @@ class NTWidgetBuilder {
       minHeight: _normalSize * 3,
       defaultWidth: 4,
       defaultHeight: 3,
+    );
+
+    register(
+      name: ChassisSpeedWidget.widgetType,
+      model: ChassisSpeedModel.new,
+      widget: ChassisSpeedWidget.new,
+      fromJson: ChassisSpeedModel.fromJson,
+      minWidth: _normalSize * 2,
+      minHeight: _normalSize * 2,
+      defaultWidth: 2,
+      defaultHeight: 2,
     );
 
     register(
