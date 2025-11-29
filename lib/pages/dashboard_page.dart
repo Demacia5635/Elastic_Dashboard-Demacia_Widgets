@@ -4,6 +4,7 @@ import 'dart:io';
 
 //import 'package:elastic_dashboard/services/nt4_client.dart';
 import 'package:elastic_dashboard/services/nt4_client.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -112,6 +113,12 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
   late final ElasticLibListener _robotNotificationListener;
   late final UpdateChecker _updateChecker;
   late final ElasticLayoutDownloader _layoutDownloader;
+
+  // playback
+  bool isPlaying = false;
+  int playbackIndex = 0;
+  List<Map<String, dynamic>> playbackData = [];
+
 
   bool _seenShuffleboardWarning = false;
   bool isRecording = false;
@@ -348,51 +355,41 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
     }
   }
 
-  // Future<String> get _localPath async {
-  //   final directory = await getApplicationDocumentsDirectory();
-  //   return directory.path;
-  // }
-
-  Future<Directory> get _directory async {
-    final directory = Directory("C:\\Recordings");
-    if (await directory.exists()) {
-      return directory;
-    } else {
-      final Directory createdDir = await directory.create(recursive: true);
-      return createdDir;
-    }
+  Future<String> get _localPath async {
+    final directory = await getApplicationDocumentsDirectory();
+    return directory.path;
   }
 
   Future<File> get _localFile async {
-    final path = await _directory;
-    return File('$path/recording.csv');
+    final path = await _localPath;
+    return File('$path/recording.json');
   }
 
-  // void _captureSnapshot() {
-  //   Map<String, Object?> values = widget.ntConnection.getLastAnnouncedValues();
-  //   Map<String, int> timestamps =
-  //       widget.ntConnection.getLastAnnouncedTimestamps();
-  //   Map<int, NT4Topic> topics = widget.ntConnection.announcedTopics();
+  void _captureSnapshot() {
+    Map<String, Object?> values = widget.ntConnection.getLastAnnouncedValues();
+    Map<String, int> timestamps =
+        widget.ntConnection.getLastAnnouncedTimestamps();
+    Map<int, NT4Topic> topics = widget.ntConnection.announcedTopics();
 
-  //   // Create a snapshot with all topic data
-  //   Map<String, dynamic> snapshot = {
-  //     'timestamp': widget.ntConnection.serverTime,
-  //     'topics': {},
-  //   };
+    // Create a snapshot with all topic data
+    Map<String, dynamic> snapshot = {
+      'timestamp': widget.ntConnection.serverTime,
+      'topics': {},
+    };
 
-  //   // Add each topic's data
-  //   for (var topic in topics.values) {
-  //     if (values.containsKey(topic.name)) {
-  //       snapshot['topics'][topic.name] = {
-  //         'value': values[topic.name],
-  //         'timestamp': timestamps[topic.name],
-  //         'type': topic.type,
-  //       };
-  //     }
-  //   }
+    // Add each topic's data
+    for (var topic in topics.values) {
+      if (values.containsKey(topic.name)) {
+        snapshot['topics'][topic.name] = {
+          'value': values[topic.name],
+          'timestamp': timestamps[topic.name],
+          'type': topic.type,
+        };
+      }
+    }
 
-  //   recorder.add(snapshot);
-  // }
+    recorder.add(snapshot);
+  }
 
   void _stopRecording() {
     // Unsubscribe from all recording subscriptions
@@ -405,47 +402,56 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
   }
 
   Future<void> _saveRecording() async {
-    if (recorder.isEmpty) {
-      print('No data to save');
-      return;
-    }
+  if (recorder.isEmpty) {
+    print('No data to save');
+    return;
+  }
 
-    try {
-      final file = await _localFile;
+  try {
+    final file = await _localFile;
 
-      // Group by timestamp for easier analysis
-      Map<int, Map<String, dynamic>> groupedByTime = {};
+    // group by timestamp
+    final Map<int, Map<String, dynamic>> grouped = {};
 
-      for (var entry in recorder) {
-        int timestamp = entry['timestamp'];
-        if (!groupedByTime.containsKey(timestamp)) {
-          groupedByTime[timestamp] = {
-            'timestamp': timestamp,
-            'topics': {},
-          };
-        }
+    for (final entry in recorder) {
+      final ts = entry['timestamp'] as int;
+      final topic = entry['topic'] as String;
+      final value = entry['value'];
+      final type = entry['type'];
 
-        groupedByTime[timestamp]!['topics'][entry['topic']] = {
-          'value': entry['value'],
-          'type': entry['type'],
-        };
-      }
-
-      String jsonString = JsonEncoder.withIndent('  ').convert({
-        'recording_start': recorder.first['timestamp'],
-        'recording_end': recorder.last['timestamp'],
-        'sample_count': recorder.length,
-        'unique_timestamps': groupedByTime.length,
-        'data': groupedByTime.values.toList(),
+      grouped.putIfAbsent(ts, () => {
+        'timestamp': ts,
+        'topics': <String, dynamic>{},
       });
 
-      await file.writeAsString(jsonString);
-      print('Recording saved to: ${file.path}');
-      print('Recorded ${recorder.length} data points');
-    } catch (e) {
-      print('Error saving recording: $e');
+      (grouped[ts]!['topics'] as Map<String, dynamic>)[topic] = {
+        'value': value,
+        'type': type,
+      };
     }
+
+    // convert to list + sort
+    final frames = grouped.values.toList()
+      ..sort((a, b) => (a['timestamp'] as int).compareTo(b['timestamp'] as int));
+
+    final start = frames.first['timestamp'] as int;
+    final end = frames.last['timestamp'] as int;
+
+    final jsonString = JsonEncoder.withIndent('  ').convert({
+      'recording_start': start,
+      'recording_end': end,
+      'sample_count': recorder.length,
+      'unique_timestamps': frames.length,
+      'data': frames,
+    });
+
+    await file.writeAsString(jsonString);
+    print('Recording saved to: ${file.path}');
+  } catch (e) {
+    print('Error saving recording: $e');
   }
+}
+
 
   void _record() async {
     isRecording = !isRecording;
@@ -511,6 +517,95 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
     // Also listen for new topics that get announced during recording
     widget.ntConnection.addTopicAnnounceListener(_onNewTopicDuringRecording);
   }
+
+  //playback
+
+  Future<void> loadPlaybackDataFromFile(String filePath) async {
+  try {
+    final file = File(filePath);
+    final jsonString = await file.readAsString();
+    final Map<String, dynamic> rec = json.decode(jsonString);
+
+    final raw = rec['data'] as List<dynamic>;
+
+    playbackData = raw
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList()
+      ..sort((a, b) =>
+          (a['timestamp'] as int).compareTo(b['timestamp'] as int));
+
+    playbackIndex = 0;
+    print("Loaded ${playbackData.length} playback frames.");
+  } catch (e) {
+    print('Error loading playback: $e');
+  }
+}
+
+
+  Future<void> startPlayback() async {
+  if (playbackData.isEmpty) {
+    print("No playback data loaded");
+    return;
+  }
+
+  if (isPlaying) return;
+
+  setState(() => isPlaying = true);
+
+  while (isPlaying && playbackIndex < playbackData.length) {
+    final frame = playbackData[playbackIndex];
+
+    // inject values
+    updateWidgetsFromPlayback(frame);
+
+    // calculate delay
+    if (playbackIndex + 1 < playbackData.length) {
+      final now = frame['timestamp'] as int;      // µs
+      final next = playbackData[playbackIndex + 1]['timestamp'] as int;
+
+      int deltaUs = next - now;
+      if (deltaUs < 0) deltaUs = 0;
+
+      // safety clamp (max 2 seconds)
+      if (deltaUs > 2 * 1000 * 1000) deltaUs = 2 * 1000 * 1000;
+
+      await Future.delayed(Duration(microseconds: deltaUs));
+    }
+
+    playbackIndex++;
+  }
+
+  setState(() => isPlaying = false);
+}
+
+
+  void pausePlayback() => setState(() => isPlaying = false);
+
+ void updateWidgetsFromPlayback(Map<String, dynamic> row) {
+  final topics = row['topics'] as Map<String, dynamic>?;
+
+  if (topics == null) return;
+
+  topics.forEach((topicName, payload) {
+    final value = payload['value'];
+    final type = payload['type'] ?? '';
+
+    widget.ntConnection.sendPlaybackValue(topicName, value, type);
+  });
+}
+
+
+  Future<String?> pickFile() async {
+  FilePickerResult? result = await FilePicker.platform.pickFiles(
+    type: FileType.custom,
+    allowedExtensions: ['json'],
+  );
+  if (result != null && result.files.single.path != null) {
+    return result.files.single.path!;
+  }
+  return null;
+}
+
 
   @override
   void onWindowClose() async {
@@ -2239,14 +2334,41 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
           'Help',
         ),
       ),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          IconButton(
+            onPressed: () {
+              setState(() {
+                _record();
+              });
+            },
+            icon: isRecording ? Icon(Icons.stop) : Icon(Icons.emergency_recording),
+          ),
 
-      IconButton(
-        onPressed: () {
-          setState(() {
-            _record();
-          });
-        },
-        icon: isRecording ? Icon(Icons.stop) : Icon(Icons.emergency_recording),
+          IconButton(
+            icon: isPlaying ? Icon(Icons.pause) : Icon(Icons.play_arrow),
+            onPressed: () {
+              if (isPlaying) {
+                pausePlayback();
+              } else if (playbackData.isNotEmpty) {
+                startPlayback();
+              }
+            },
+          ),
+
+          IconButton(
+            icon: Icon(Icons.folder_open),
+            tooltip: 'Open Recording File',
+            onPressed: () async {
+              String? path = await pickFile();
+              if (path != null) {
+                await loadPlaybackDataFromFile(path);
+              }
+            },
+          ),
+          
+        ]
       ),
     ];
 
