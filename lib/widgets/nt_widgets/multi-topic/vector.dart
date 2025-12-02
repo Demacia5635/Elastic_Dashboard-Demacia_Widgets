@@ -7,10 +7,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 class VectorModel extends MultiTopicNTWidgetModel {
+  @override
   String type = Vector.widgetType;
 
-  late List<NT4Subscription> vectorsX;
-  late List<NT4Subscription> vectorsY;
+  late NT4Subscription vectorsSubscription;
+  late NT4Subscription startingPointsSubscription;
 
   VectorModel({
     required super.ntConnection,
@@ -27,43 +28,98 @@ class VectorModel extends MultiTopicNTWidgetModel {
   }) : super.fromJson();
 
   @override
-  void initializeSubscriptions() {
-    vectorsX = [];
-    vectorsY = [];
-    if (vectorsX.length != vectorsY.length) {
-      throw Error();
-    }
+  void init() {
+    super.init();
 
-    for (int i = 0; i < 5; i++) {
-      NT4Subscription subX =
-          ntConnection.subscribe('$topic/Vector$i/X', super.period);
-      NT4Subscription subY =
-          ntConnection.subscribe('$topic/Vector$i/Y', super.period);
+    vectorsSubscription =
+        ntConnection.subscribe('$topic/Vectors', super.period);
+    startingPointsSubscription =
+        ntConnection.subscribe('$topic/StartingPoints', super.period);
 
-      subX.listen((value, timestamp) {
-        notifyListeners();
-      });
+    vectorsSubscription.listen((value, timestamp) {
+      notifyListeners();
+    });
 
-      subY.listen((value, timestamp) {
-        notifyListeners();
-      });
-
-      vectorsX.add(subX);
-      vectorsY.add(subY);
-    }
+    startingPointsSubscription.listen((value, timestamp) {
+      notifyListeners();
+    });
   }
 
-  int getActiveVectorCount() {
-    int count = 0;
-    for (int i = 0; i < vectorsX.length; i++) {
-      var xValue = vectorsX[i].value;
-      var yValue = vectorsY[i].value;
+  @override
+  void dispose() {
+    super.dispose();
+  }
 
-      if (xValue != null || yValue != null) {
-        count = i + 1;
+  List<VectorData> getVectors() {
+    List<VectorData> vectors = [];
+
+    var vectorsValue = vectorsSubscription.value;
+    var startingPointsValue = startingPointsSubscription.value;
+
+    if (vectorsValue == null || vectorsValue is! List) {
+      return vectors;
+    }
+
+    List<double> vectorsList = [];
+    for (var v in vectorsValue) {
+      if (v is num) {
+        vectorsList.add(v.toDouble());
       }
     }
-    return count;
+
+    List<double> startingPointsList = [];
+    if (startingPointsValue != null && startingPointsValue is List) {
+      for (var v in startingPointsValue) {
+        if (v is num) {
+          startingPointsList.add(v.toDouble());
+        }
+      }
+    }
+
+    // המערך מכיל זוגות של (magnitude, angle) לכל וקטור
+    if (vectorsList.length % 2 != 0) {
+      return vectors;
+    }
+
+    int vectorCount = vectorsList.length ~/ 2;
+
+    for (int i = 0; i < vectorCount; i++) {
+      double magnitude = vectorsList[i * 2];
+      double angleDegrees = vectorsList[i * 2 + 1];
+
+      double startX = 0.0;
+      double startY = 0.0;
+
+      if (startingPointsList.length >= (i + 1) * 2) {
+        startX = startingPointsList[i * 2];
+        startY = startingPointsList[i * 2 + 1];
+      }
+
+      vectors.add(VectorData(
+        magnitude: magnitude,
+        angleDegrees: angleDegrees,
+        startX: startX,
+        startY: startY,
+        color: _getColorForIndex(i),
+        index: i,
+      ));
+    }
+
+    return vectors;
+  }
+
+  Color _getColorForIndex(int index) {
+    final colors = [
+      Colors.blue,
+      Colors.red,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.cyan,
+      Colors.pink,
+      Colors.amber,
+    ];
+    return colors[index % colors.length];
   }
 }
 
@@ -78,19 +134,8 @@ class Vector extends NTWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        List<VectorData> vectors = [];
+        List<VectorData> vectors = model.getVectors();
 
-        for (int i = 0; i < model.getActiveVectorCount(); i++) {
-          double x = tryCast(model.vectorsX[i].value) ?? 0.0;
-          double y = tryCast(model.vectorsY[i].value) ?? 0.0;
-
-          vectors.add(VectorData(
-            x: x,
-            y: y,
-            color: _getColorForIndex(i),
-            index: i,
-          ));
-        }
         if (vectors.isEmpty) {
           return Center(
             child: Text(
@@ -99,6 +144,7 @@ class Vector extends NTWidget {
             ),
           );
         }
+
         return Column(
           children: [
             Padding(
@@ -109,7 +155,7 @@ class Vector extends NTWidget {
                 children: [
                   for (var vector in vectors)
                     Text(
-                      'V${vector.index}: (${vector.x.toStringAsFixed(2)}, ${vector.y.toStringAsFixed(2)})',
+                      'V${vector.index}: ${vector.magnitude.toStringAsFixed(2)}∠${vector.angleDegrees.toStringAsFixed(1)}° @ (${vector.startX.toStringAsFixed(2)}, ${vector.startY.toStringAsFixed(2)})',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: vector.color,
                           ),
@@ -131,35 +177,32 @@ class Vector extends NTWidget {
       },
     );
   }
-
-  Color _getColorForIndex(int index) {
-    final colors = [
-      Colors.blue,
-      Colors.red,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.cyan,
-      Colors.pink,
-      Colors.amber,
-    ];
-    return colors[index % colors.length];
-  }
 }
 
 class VectorData {
-  final double x;
-  final double y;
+  final double magnitude;
+  final double angleDegrees;
+  final double startX;
+  final double startY;
   final Color color;
   final int index;
 
-  VectorData(
-      {required this.x,
-      required this.y,
-      required this.color,
-      required this.index});
+  VectorData({
+    required this.magnitude,
+    required this.angleDegrees,
+    required this.startX,
+    required this.startY,
+    required this.color,
+    required this.index,
+  });
 
-  double get magnitude => sqrt(x * x + y * y);
+  // המרה לרדיאנים
+  double get angleRadians => angleDegrees * pi / 180.0;
+
+  // חישוב X,Y מהגודל והזווית
+  // זווית 0° = ימינה, 90° = למעלה, -90° = למטה, 180° = שמאלה
+  double get x => magnitude * cos(angleRadians);
+  double get y => magnitude * sin(angleRadians);
 }
 
 class VectorPainter extends CustomPainter {
@@ -171,14 +214,38 @@ class VectorPainter extends CustomPainter {
     required this.arrowSize,
   });
 
+  double _calculateScale(double maxValue) {
+    if (maxValue == 0) return 1.0;
+
+    if (maxValue < 1.0) {
+      double scale = 1.0;
+      while (scale / 2 > maxValue) {
+        scale /= 2;
+      }
+      return scale;
+    }
+
+    double powerOf10 = pow(10, (log(maxValue) / ln10).ceil()).toDouble();
+    return powerOf10;
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
-    double maxMagnitude = vectors.fold(
-      0.0,
-      (max, v) => v.magnitude > max ? v.magnitude : max,
-    );
+    // מציאת הגודל המקסימלי של הווקטורים + נקודות ההתחלה
+    double maxMagnitude = 0.0;
+    double maxStartPosition = 0.0;
 
-    if (maxMagnitude == 0) maxMagnitude = 1.0;
+    for (var vector in vectors) {
+      maxMagnitude = max(maxMagnitude, vector.magnitude);
+      double startDistance =
+          sqrt(vector.startX * vector.startX + vector.startY * vector.startY);
+      maxStartPosition = max(maxStartPosition, startDistance);
+    }
+
+    // קנה מידה מבוסס על הגודל המקסימלי + המרחק המקסימלי של נקודת התחלה
+    double maxRange = max(maxMagnitude + maxStartPosition, 0.1);
+
+    double gridScale = _calculateScale(maxRange);
 
     final Offset origin = Offset(size.width / 2, size.height / 2);
 
@@ -197,7 +264,9 @@ class VectorPainter extends CustomPainter {
       axisPaint,
     );
 
-    double scaleFactor = min(size.width, size.height) * 0.4 / maxMagnitude;
+    double scaleFactor = min(size.width, size.height) * 0.35 / gridScale;
+
+    _drawGridAndLabels(canvas, size, origin, gridScale, scaleFactor);
 
     for (var vector in vectors) {
       if (vector.magnitude == 0) continue;
@@ -207,16 +276,21 @@ class VectorPainter extends CustomPainter {
         ..strokeWidth = 2.0
         ..style = PaintingStyle.stroke;
 
-      final Offset vectorEnd = Offset(
-        origin.dx + vector.x * scaleFactor,
-        origin.dy - vector.y * scaleFactor,
+      final Offset vectorStart = Offset(
+        origin.dx + vector.startX * scaleFactor,
+        origin.dy - vector.startY * scaleFactor,
       );
 
-      canvas.drawLine(origin, vectorEnd, paint);
+      final Offset vectorEnd = Offset(
+        vectorStart.dx + vector.x * scaleFactor,
+        vectorStart.dy - vector.y * scaleFactor,
+      );
+
+      canvas.drawLine(vectorStart, vectorEnd, paint);
 
       final double angle = atan2(
-        vectorEnd.dy - origin.dy,
-        vectorEnd.dx - origin.dx,
+        vectorEnd.dy - vectorStart.dy,
+        vectorEnd.dx - vectorStart.dx,
       );
 
       canvas.drawLine(
@@ -235,25 +309,87 @@ class VectorPainter extends CustomPainter {
         ),
         paint,
       );
+
+      canvas.drawCircle(
+        vectorStart,
+        4.0,
+        Paint()
+          ..color = vector.color
+          ..style = PaintingStyle.fill,
+      );
+    }
+  }
+
+  void _drawGridAndLabels(Canvas canvas, Size size, Offset origin,
+      double gridScale, double scaleFactor) {
+    final gridPaint = Paint()
+      ..color = Colors.grey.withOpacity(0.3)
+      ..strokeWidth = 0.5;
+
+    final textPainter = TextPainter(
+      textDirection: TextDirection.ltr,
+    );
+
+    int numLines = 8;
+    for (int i = -numLines; i <= numLines; i++) {
+      if (i == 0) continue;
+
+      double value = i * (gridScale / 4);
+
+      double x = origin.dx + value * scaleFactor;
+      if (x >= 0 && x <= size.width) {
+        canvas.drawLine(
+          Offset(x, 0),
+          Offset(x, size.height),
+          gridPaint,
+        );
+
+        textPainter.text = TextSpan(
+          text: value.toStringAsFixed(value.abs() < 1 ? 2 : 1),
+          style: TextStyle(color: Colors.grey, fontSize: 10),
+        );
+        textPainter.layout();
+        textPainter.paint(
+          canvas,
+          Offset(x - textPainter.width / 2, origin.dy + 5),
+        );
+      }
+
+      double y = origin.dy - value * scaleFactor;
+      if (y >= 0 && y <= size.height) {
+        canvas.drawLine(
+          Offset(0, y),
+          Offset(size.width, y),
+          gridPaint,
+        );
+
+        textPainter.text = TextSpan(
+          text: value.toStringAsFixed(value.abs() < 1 ? 2 : 1),
+          style: TextStyle(color: Colors.grey, fontSize: 10),
+        );
+        textPainter.layout();
+        textPainter.paint(
+          canvas,
+          Offset(origin.dx + 5, y - textPainter.height / 2),
+        );
+      }
     }
   }
 
   @override
   bool shouldRepaint(covariant VectorPainter oldDelegate) {
     if (vectors.length != oldDelegate.vectors.length) {
-      print('another Vector popped!');
       return true;
     }
-    print('no new vector :(');
 
     for (int i = 0; i < vectors.length; i++) {
-      if (oldDelegate.vectors[i].x != vectors[i].x ||
-          oldDelegate.vectors[i].y != vectors[i].y) {
-        print('x|y changed');
+      if (oldDelegate.vectors[i].magnitude != vectors[i].magnitude ||
+          oldDelegate.vectors[i].angleDegrees != vectors[i].angleDegrees ||
+          oldDelegate.vectors[i].startX != vectors[i].startX ||
+          oldDelegate.vectors[i].startY != vectors[i].startY) {
         return true;
       }
     }
-    print('ntn changed');
     return false;
   }
 }
