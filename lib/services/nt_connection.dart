@@ -242,15 +242,24 @@ class NTConnection {
   }
 
   void updateDataFromSubscription(NT4Subscription subscription, dynamic data) {
-    _ntClient.addSampleFromName(subscription.topic, data);
-  }
-
-  void updateDataFromTopic(NT4Topic topic, dynamic data) {
-    _ntClient.addSample(topic, data);
-  }
-
-  @visibleForTesting
-  void updateDataFromTopicName(String topic, dynamic data) {
-    _ntClient.addSampleFromName(topic, data);
-  }
+  _ntClient.addSampleFromName(subscription.topic, data);
 }
+
+void updateDataFromTopic(NT4Topic topic, dynamic data) {
+  _ntClient.addSample(topic, data);
+}
+
+// ---- PLAYBACK SUPPORT ----
+
+// This must appear BEFORE sendPlaybackValue()
+@visibleForTesting
+void updateDataFromTopicName(String topic, dynamic data) {
+  _ntClient.addSampleFromName(topic, data);
+}
+
+void sendPlaybackValue(String topicName, dynamic value, String type) {
+  // type is not needed – NT4 infers the correct one
+  updateDataFromTopicName(topicName, value);
+}
+}
+
