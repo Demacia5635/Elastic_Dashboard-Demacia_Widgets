@@ -119,7 +119,6 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
   int playbackIndex = 0;
   List<Map<String, dynamic>> playbackData = [];
 
-
   bool _seenShuffleboardWarning = false;
   bool isRecording = false;
   List<Map<String, dynamic>> recorder = [];
@@ -365,34 +364,7 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
     return File('$path/recording.json');
   }
 
-  void _captureSnapshot() {
-    Map<String, Object?> values = widget.ntConnection.getLastAnnouncedValues();
-    Map<String, int> timestamps =
-        widget.ntConnection.getLastAnnouncedTimestamps();
-    Map<int, NT4Topic> topics = widget.ntConnection.announcedTopics();
-
-    // Create a snapshot with all topic data
-    Map<String, dynamic> snapshot = {
-      'timestamp': widget.ntConnection.serverTime,
-      'topics': {},
-    };
-
-    // Add each topic's data
-    for (var topic in topics.values) {
-      if (values.containsKey(topic.name)) {
-        snapshot['topics'][topic.name] = {
-          'value': values[topic.name],
-          'timestamp': timestamps[topic.name],
-          'type': topic.type,
-        };
-      }
-    }
-
-    recorder.add(snapshot);
-  }
-
   void _stopRecording() {
-    // Unsubscribe from all recording subscriptions
     for (var sub in _recordingSubscriptions.values) {
       widget.ntConnection.unSubscribe(sub);
     }
@@ -402,58 +374,87 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
   }
 
   Future<void> _saveRecording() async {
-  if (recorder.isEmpty) {
-    print('No data to save');
-    return;
-  }
-
-  try {
-    final file = await _localFile;
-
-    // group by timestamp
-    final Map<int, Map<String, dynamic>> grouped = {};
-
-    for (final entry in recorder) {
-      final ts = entry['timestamp'] as int;
-      final topic = entry['topic'] as String;
-      final value = entry['value'];
-      final type = entry['type'];
-
-      grouped.putIfAbsent(ts, () => {
-        'timestamp': ts,
-        'topics': <String, dynamic>{},
-      });
-
-      (grouped[ts]!['topics'] as Map<String, dynamic>)[topic] = {
-        'value': value,
-        'type': type,
-      };
+    if (recorder.isEmpty) {
+      print('No data to save');
+      _showWarningNotification(
+        title: 'No Recording Data',
+        message: 'No data to save',
+        width: 300,
+      );
+      return;
     }
 
-    // convert to list + sort
-    final frames = grouped.values.toList()
-      ..sort((a, b) => (a['timestamp'] as int).compareTo(b['timestamp'] as int));
+    try {
+      final file = await _localFile;
 
-    final start = frames.first['timestamp'] as int;
-    final end = frames.last['timestamp'] as int;
+      // group by timestamp
+      final Map<int, Map<String, dynamic>> grouped = {};
 
-    final jsonString = JsonEncoder.withIndent('  ').convert({
-      'recording_start': start,
-      'recording_end': end,
-      'sample_count': recorder.length,
-      'unique_timestamps': frames.length,
-      'data': frames,
-    });
+      for (final entry in recorder) {
+        final ts = entry['timestamp'] as int;
+        final topic = entry['topic'] as String;
+        final value = entry['value'];
+        final type = entry['type'];
 
-    await file.writeAsString(jsonString);
-    print('Recording saved to: ${file.path}');
-  } catch (e) {
-    print('Error saving recording: $e');
+        grouped.putIfAbsent(
+            ts,
+            () => {
+                  'timestamp': ts,
+                  'topics': <String, dynamic>{},
+                });
+
+        (grouped[ts]!['topics'] as Map<String, dynamic>)[topic] = {
+          'value': value,
+          'type': type,
+        };
+      }
+
+      // convert to list + sort
+      final frames = grouped.values.toList()
+        ..sort(
+            (a, b) => (a['timestamp'] as int).compareTo(b['timestamp'] as int));
+
+      final start = frames.first['timestamp'] as int;
+      final end = frames.last['timestamp'] as int;
+
+      final jsonString = JsonEncoder.withIndent('  ').convert({
+        'recording_start': start,
+        'recording_end': end,
+        'sample_count': recorder.length,
+        'unique_timestamps': frames.length,
+        'data': frames,
+      });
+
+      await file.writeAsString(jsonString);
+      print('Recording saved to: ${file.path}');
+
+      _showInfoNotification(
+        title: 'Recording Saved',
+        message: 'Recording saved to: ${file.path}',
+        width: 400,
+      );
+    } catch (e) {
+      print('Error saving recording: $e');
+      _showErrorNotification(
+        title: 'Save Failed',
+        message: 'Error saving recording: $e',
+        width: 400,
+      );
+    }
   }
-}
-
 
   void _record() async {
+    // Don't allow recording during playback
+
+    if (widget.ntConnection.isInPlaybackMode) {
+      _showWarningNotification(
+        title: 'Cannot Record',
+        message: 'Cannot start recording during playback',
+        width: 300,
+      );
+      return;
+    }
+
     isRecording = !isRecording;
 
     if (isRecording) {
@@ -465,6 +466,8 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
       _stopRecording();
       await _saveRecording();
     }
+
+    setState(() {});
   }
 
   void _onNewTopicDuringRecording(NT4Topic topic) {
@@ -518,94 +521,135 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
     widget.ntConnection.addTopicAnnounceListener(_onNewTopicDuringRecording);
   }
 
-  //playback
+// ========== PLAYBACK ==========
 
   Future<void> loadPlaybackDataFromFile(String filePath) async {
-  try {
-    final file = File(filePath);
-    final jsonString = await file.readAsString();
-    final Map<String, dynamic> rec = json.decode(jsonString);
+    try {
+      print('Loading playback data from $filePath');
+      final file = File(filePath);
+      final jsonString = await file.readAsString();
+      final Map<String, dynamic> rec = json.decode(jsonString);
 
-    final raw = rec['data'] as List<dynamic>;
+      final raw = rec['data'] as List<dynamic>;
 
-    playbackData = raw
-        .map((e) => Map<String, dynamic>.from(e as Map))
-        .toList()
-      ..sort((a, b) =>
-          (a['timestamp'] as int).compareTo(b['timestamp'] as int));
+      playbackData = raw
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList()
+        ..sort(
+            (a, b) => (a['timestamp'] as int).compareTo(b['timestamp'] as int));
 
-    playbackIndex = 0;
-    print("Loaded ${playbackData.length} playback frames.");
-  } catch (e) {
-    print('Error loading playback: $e');
+      playbackIndex = 0;
+      print("Loaded ${playbackData.length} playback frames.");
+
+      _showInfoNotification(
+        title: 'Playback Loaded',
+        message: 'Loaded ${playbackData.length} frames',
+        width: 300,
+      );
+    } catch (e) {
+      print('Error loading playback: $e');
+      _showErrorNotification(
+        title: 'Load Failed',
+        message: 'Error loading playback: $e',
+        width: 400,
+      );
+    }
   }
-}
-
 
   Future<void> startPlayback() async {
-  if (playbackData.isEmpty) {
-    print("No playback data loaded");
-    return;
-  }
-
-  if (isPlaying) return;
-
-  setState(() => isPlaying = true);
-
-  while (isPlaying && playbackIndex < playbackData.length) {
-    final frame = playbackData[playbackIndex];
-
-    // inject values
-    updateWidgetsFromPlayback(frame);
-
-    // calculate delay
-    if (playbackIndex + 1 < playbackData.length) {
-      final now = frame['timestamp'] as int;      // µs
-      final next = playbackData[playbackIndex + 1]['timestamp'] as int;
-
-      int deltaUs = next - now;
-      if (deltaUs < 0) deltaUs = 0;
-
-      // safety clamp (max 2 seconds)
-      if (deltaUs > 2 * 1000 * 1000) deltaUs = 2 * 1000 * 1000;
-
-      await Future.delayed(Duration(microseconds: deltaUs));
+    if (playbackData.isEmpty) {
+      print("No playback data loaded");
+      _showWarningNotification(
+        title: 'No Playback Data',
+        message: 'Please load a recording file first',
+        width: 300,
+      );
+      return;
     }
 
-    playbackIndex++;
+    if (isPlaying) return;
+
+    widget.ntConnection.enterPlaybackMode();
+
+    setState(() => isPlaying = true);
+
+    try {
+      while (isPlaying && playbackIndex < playbackData.length) {
+        final frame = playbackData[playbackIndex];
+
+        // inject values
+        updateWidgetsFromPlayback(frame);
+
+        // calculate delay
+        if (playbackIndex + 1 < playbackData.length) {
+          final now = frame['timestamp'] as int; // µs
+          final next = playbackData[playbackIndex + 1]['timestamp'] as int;
+
+          int deltaUs = next - now;
+          if (deltaUs < 0) deltaUs = 0;
+
+          // safety clamp (max 2 seconds)
+          if (deltaUs > 2 * 1000 * 1000) deltaUs = 2 * 1000 * 1000;
+
+          await Future.delayed(Duration(microseconds: deltaUs));
+        }
+
+        playbackIndex++;
+      }
+
+      // Playback finished
+      if (playbackIndex >= playbackData.length) {
+        print("Playback completed");
+        _showInfoNotification(
+          title: 'Playback Complete',
+          message: 'Playback finished',
+          width: 300,
+        );
+      }
+    } finally {
+      setState(() => isPlaying = false);
+      // CRITICAL: Exit playback mode to resume live NT updates
+      widget.ntConnection.exitPlaybackMode();
+    }
   }
 
-  setState(() => isPlaying = false);
-}
+  void pausePlayback() {
+    setState(() => isPlaying = false);
+    // Stay in playback mode - don't exit yet
+  }
 
+  void stopPlayback() {
+    setState(() {
+      isPlaying = false;
+      playbackIndex = 0;
+    });
 
-  void pausePlayback() => setState(() => isPlaying = false);
+    widget.ntConnection.exitPlaybackMode();
+  }
 
- void updateWidgetsFromPlayback(Map<String, dynamic> row) {
-  final topics = row['topics'] as Map<String, dynamic>?;
+  void updateWidgetsFromPlayback(Map<String, dynamic> row) {
+    final topics = row['topics'] as Map<String, dynamic>?;
 
-  if (topics == null) return;
+    if (topics == null) return;
 
-  topics.forEach((topicName, payload) {
-    final value = payload['value'];
-    final type = payload['type'] ?? '';
+    topics.forEach((topicName, payload) {
+      final value = payload['value'];
+      final type = payload['type'] ?? '';
 
-    widget.ntConnection.sendPlaybackValue(topicName, value, type);
-  });
-}
-
+      widget.ntConnection.sendPlaybackValue(topicName, value, type);
+    });
+  }
 
   Future<String?> pickFile() async {
-  FilePickerResult? result = await FilePicker.platform.pickFiles(
-    type: FileType.custom,
-    allowedExtensions: ['json'],
-  );
-  if (result != null && result.files.single.path != null) {
-    return result.files.single.path!;
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+    );
+    if (result != null && result.files.single.path != null) {
+      return result.files.single.path!;
+    }
+    return null;
   }
-  return null;
-}
-
 
   @override
   void onWindowClose() async {
@@ -2334,42 +2378,37 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
           'Help',
         ),
       ),
-      Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          IconButton(
-            onPressed: () {
-              setState(() {
-                _record();
-              });
-            },
-            icon: isRecording ? Icon(Icons.stop) : Icon(Icons.emergency_recording),
-          ),
-
-          IconButton(
-            icon: isPlaying ? Icon(Icons.pause) : Icon(Icons.play_arrow),
-            onPressed: () {
-              if (isPlaying) {
-                pausePlayback();
-              } else if (playbackData.isNotEmpty) {
-                startPlayback();
-              }
-            },
-          ),
-
-          IconButton(
-            icon: Icon(Icons.folder_open),
-            tooltip: 'Open Recording File',
-            onPressed: () async {
-              String? path = await pickFile();
-              if (path != null) {
-                await loadPlaybackDataFromFile(path);
-              }
-            },
-          ),
-          
-        ]
-      ),
+      Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+        IconButton(
+          onPressed: () {
+            setState(() {
+              _record();
+            });
+          },
+          icon:
+              isRecording ? Icon(Icons.stop) : Icon(Icons.emergency_recording),
+        ),
+        IconButton(
+          icon: isPlaying ? Icon(Icons.pause) : Icon(Icons.play_arrow),
+          onPressed: () {
+            if (isPlaying) {
+              pausePlayback();
+            } else if (playbackData.isNotEmpty) {
+              startPlayback();
+            }
+          },
+        ),
+        IconButton(
+          icon: Icon(Icons.folder_open),
+          tooltip: 'Open Recording File',
+          onPressed: () async {
+            String? path = await pickFile();
+            if (path != null) {
+              await loadPlaybackDataFromFile(path);
+            }
+          },
+        ),
+      ]),
     ];
 
     MenuBar menuBar = MenuBar(

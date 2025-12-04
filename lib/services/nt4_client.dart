@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:elastic_dashboard/services/nt_connection.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:collection/collection.dart';
@@ -125,7 +126,16 @@ class NT4Subscription extends ValueNotifier<Object?> {
     }
   }
 
-  void updateValue(Object? value, int timestamp) {
+  /**Updates value if not in playback mode */
+  void updateValue(Object? value, int timestamp, {bool isPlayback = false}) {
+    print(
+        "${NT4Client._pauseLiveUpdates && !isPlayback} is pause live updates");
+    if (NT4Client._pauseLiveUpdates) {
+      print('paying live updates, skipping update for subscription: $this');
+      return;
+    } else {
+      print('client is not paused');
+    }
     logger.trace(
         'Updating value for subscription: $this - Value: $value, Time: $timestamp');
     for (var listener in _listeners) {
@@ -307,6 +317,8 @@ class NT4Client {
   bool _attemptingRTTConnection = false;
 
   int _lastPongTime = 0;
+
+  static bool _pauseLiveUpdates = false;
 
   Map<int, NT4Subscription> get subscriptions => _subscriptions;
   Set<NT4Subscription> get subscribedTopics => _subscribedTopics;
@@ -1033,6 +1045,17 @@ class NT4Client {
   int getNewPubUID() {
     _publishUIDCounter++;
     return _publishUIDCounter + _clientId;
+  }
+
+  void pauseLiveUpdates() {
+    _pauseLiveUpdates = true;
+    print("NT4Client: Live updates paused");
+  }
+
+  /// Resumes processing of live NetworkTables updates after playback
+  void resumeLiveUpdates() {
+    _pauseLiveUpdates = false;
+    print("NT4Client: Live updates resumed");
   }
 }
 

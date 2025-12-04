@@ -36,6 +36,9 @@ class NTConnection {
   Map<int, NT4Subscription> subscriptionMap = {};
   Map<NT4Subscription, int> subscriptionUseCount = {};
 
+  bool _isPlaybackMode = false;
+  bool get isInPlaybackMode => _isPlaybackMode;
+
   NTConnection(String ipAddress) {
     nt4Connect(ipAddress);
   }
@@ -242,24 +245,63 @@ class NTConnection {
   }
 
   void updateDataFromSubscription(NT4Subscription subscription, dynamic data) {
-  _ntClient.addSampleFromName(subscription.topic, data);
-}
+    _ntClient.addSampleFromName(subscription.topic, data);
+  }
 
-void updateDataFromTopic(NT4Topic topic, dynamic data) {
-  _ntClient.addSample(topic, data);
-}
+  void updateDataFromTopic(NT4Topic topic, dynamic data) {
+    _ntClient.addSample(topic, data);
+  }
 
 // ---- PLAYBACK SUPPORT ----
 
 // This must appear BEFORE sendPlaybackValue()
-@visibleForTesting
-void updateDataFromTopicName(String topic, dynamic data) {
-  _ntClient.addSampleFromName(topic, data);
-}
+  @visibleForTesting
+  void updateDataFromTopicName(String topic, dynamic data) {
+    _ntClient.addSampleFromName(topic, data);
+  }
 
-void sendPlaybackValue(String topicName, dynamic value, String type) {
-  // type is not needed – NT4 infers the correct one
-  updateDataFromTopicName(topicName, value);
-}
-}
+  void sendPlaybackValue(String topicName, dynamic value, String type) {
+    // מוצא מנוי לפי topic
+    NT4Subscription? sub;
 
+    for (final s in subscriptions) {
+      if (s.topic == topicName) {
+        sub = s;
+        break;
+      }
+    }
+
+    if (sub == null) {
+      print("Playback: No subscription for topic $topicName");
+      return;
+    }
+
+    // דוחף ערך ישירות ל-updateValue עם isPlayback=true
+    sub.updateValue(
+      value,
+      DateTime.now().microsecondsSinceEpoch,
+      isPlayback: true,
+    );
+  }
+
+  // void unSubscribeAll() {
+  //   for (final subscription in subscriptionUseCount.keys.toList()) {
+  //     _ntClient.unSubscribe(subscription);
+  //   }
+
+  //   subscriptionMap.clear();
+  //   subscriptionUseCount.clear();
+  // }
+
+  void exitPlaybackMode() {
+    print("NTConnection: Exiting playback mode");
+    _isPlaybackMode = false;
+    _ntClient.resumeLiveUpdates();
+  }
+
+  void enterPlaybackMode() {
+    print("NTConnection: Entering playback mode");
+    _isPlaybackMode = true;
+    _ntClient.pauseLiveUpdates();
+  }
+}

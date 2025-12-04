@@ -1,3 +1,5 @@
+// Fixed version of your code with correct scaling for values < 1
+
 import 'dart:math';
 
 import 'package:dot_cast/dot_cast.dart';
@@ -76,7 +78,6 @@ class VectorModel extends MultiTopicNTWidgetModel {
       }
     }
 
-    // המערך מכיל זוגות של (magnitude, angle) לכל וקטור
     if (vectorsList.length % 2 != 0) {
       return vectors;
     }
@@ -196,11 +197,8 @@ class VectorData {
     required this.index,
   });
 
-  // המרה לרדיאנים
   double get angleRadians => angleDegrees * pi / 180.0;
 
-  // חישוב X,Y מהגודל והזווית
-  // זווית 0° = ימינה, 90° = למעלה, -90° = למטה, 180° = שמאלה
   double get x => magnitude * cos(angleRadians);
   double get y => magnitude * sin(angleRadians);
 }
@@ -214,38 +212,51 @@ class VectorPainter extends CustomPainter {
     required this.arrowSize,
   });
 
-  double _calculateScale(double maxValue) {
-    if (maxValue == 0) return 1.0;
+  // FIXED: scales properly when values < 1
+  // NEW SCALING: always scale so max vector end reaches ~40% of canvas
+  double _calculateScale(double maxValue, Size size) {
+    // Avoid zero
+    if (maxValue < 1e-9) return 1.0;
 
-    if (maxValue < 1.0) {
-      double scale = 1.0;
-      while (scale / 2 > maxValue) {
-        scale /= 2;
-      }
-      return scale;
-    }
+    // The actual scaling should consider pixel space
+    double targetPixels = min(size.width, size.height) * 0.60;
 
-    double powerOf10 = pow(10, (log(maxValue) / ln10).ceil()).toDouble();
-    return powerOf10;
+    // scale = how many real units per pixel
+    return maxValue == 0 ? 1.0 : maxValue / targetPixels;
   }
+
+  // // Rounds max value to a "nice" number for grid spacing
+  // double _roundToNiceNumber(double maxValue) {
+  //   if (maxValue == 0) return 1.0;
+
+  //   double exponent = (log(maxValue) / ln10).floorToDouble();
+  //   double base = pow(10, exponent).toDouble();
+  //   double fraction = maxValue / base;
+
+  //   if (fraction <= 1) return base;
+  //   if (fraction <= 2) return 2 * base;
+  //   if (fraction <= 5) return 5 * base;
+  //   return 10 * base;
+  // }
 
   @override
   void paint(Canvas canvas, Size size) {
-    // מציאת הגודל המקסימלי של הווקטורים + נקודות ההתחלה
     double maxMagnitude = 0.0;
     double maxStartPosition = 0.0;
 
     for (var vector in vectors) {
-      maxMagnitude = max(maxMagnitude, vector.magnitude);
+      maxMagnitude = max(maxMagnitude, vector.magnitude.abs());
       double startDistance =
           sqrt(vector.startX * vector.startX + vector.startY * vector.startY);
       maxStartPosition = max(maxStartPosition, startDistance);
     }
 
-    // קנה מידה מבוסס על הגודל המקסימלי + המרחק המקסימלי של נקודת התחלה
-    double maxRange = max(maxMagnitude + maxStartPosition, 0.1);
+    double maxRange = max(maxMagnitude + maxStartPosition, 0.01);
 
-    double gridScale = _calculateScale(maxRange);
+    double gridScale = maxRange; // Logical max range for labels
+
+    double scaleFactor = 1 / _calculateScale(maxRange, size);
+    (maxRange);
 
     final Offset origin = Offset(size.width / 2, size.height / 2);
 
@@ -264,7 +275,7 @@ class VectorPainter extends CustomPainter {
       axisPaint,
     );
 
-    double scaleFactor = min(size.width, size.height) * 0.35 / gridScale;
+    // replaced by new scaleFactor above
 
     _drawGridAndLabels(canvas, size, origin, gridScale, scaleFactor);
 
