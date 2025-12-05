@@ -130,7 +130,7 @@ class NT4Subscription extends ValueNotifier<Object?> {
   void updateValue(Object? value, int timestamp, {bool isPlayback = false}) {
     print(
         "${NT4Client._pauseLiveUpdates && !isPlayback} is pause live updates");
-    if (NT4Client._pauseLiveUpdates) {
+    if (NT4Client._pauseLiveUpdates && !isPlayback) {
       print('paying live updates, skipping update for subscription: $this');
       return;
     } else {

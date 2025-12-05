@@ -276,7 +276,6 @@ class NTConnection {
       return;
     }
 
-    // דוחף ערך ישירות ל-updateValue עם isPlayback=true
     sub.updateValue(
       value,
       DateTime.now().microsecondsSinceEpoch,
