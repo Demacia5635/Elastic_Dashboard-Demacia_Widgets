@@ -5,7 +5,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:elastic_dashboard/services/nt_connection.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:collection/collection.dart';
@@ -51,6 +50,32 @@ class NT4TypeStr {
   static const kIntArr = 'int[]';
   static const kFloat32Arr = 'float[]';
   static const kStringArr = 'string[]';
+
+  static String fromValue(dynamic v) {
+    switch (v) {
+      case const (int):
+        return 'int';
+      case const (double):
+        return 'double';
+      case const (bool):
+        return 'boolean';
+      case const (String):
+        return 'string';
+      case const (List<int>):
+        return 'int[]';
+      case const (Uint8List):
+        return 'raw';
+      case const (List<double>):
+        return 'double[]';
+      case const (List<bool>):
+        return 'boolean[]';
+      case const (List<String>):
+        return 'string[]';
+
+      default:
+        return 'string';
+    }
+  }
 }
 
 class NT4Subscription extends ValueNotifier<Object?> {
@@ -128,13 +153,8 @@ class NT4Subscription extends ValueNotifier<Object?> {
 
   /**Updates value if not in playback mode */
   void updateValue(Object? value, int timestamp, {bool isPlayback = false}) {
-    print(
-        "${NT4Client._pauseLiveUpdates && !isPlayback} is pause live updates");
     if (NT4Client._pauseLiveUpdates && !isPlayback) {
-      print('paying live updates, skipping update for subscription: $this');
       return;
-    } else {
-      print('client is not paused');
     }
     logger.trace(
         'Updating value for subscription: $this - Value: $value, Time: $timestamp');

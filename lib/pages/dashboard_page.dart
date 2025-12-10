@@ -4,6 +4,7 @@ import 'dart:io';
 
 //import 'package:elastic_dashboard/services/nt4_client.dart';
 import 'package:elastic_dashboard/services/nt4_client.dart';
+import 'package:elastic_dashboard/services/nt_widget_builder.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -122,8 +123,10 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
   bool _seenShuffleboardWarning = false;
   bool isRecording = false;
   List<Map<String, dynamic>> recorder = [];
-  //Timer? _recordingTimer;
-  Map<String, NT4Subscription> _recordingSubscriptions = {};
+  final Map<String, NT4Subscription> _recordingSubscriptions = {};
+  Map<String, String> widgetTypes = {};
+  final Map<String, dynamic> lastSentValues = {};
+  final double playbackSpeed = 0.5;
 
   final List<TabData> _tabData = [];
 
@@ -361,7 +364,8 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
 
   Future<File> get _localFile async {
     final path = await _localPath;
-    return File('$path/recording.json');
+    final timeStamp = DateTime.now().millisecondsSinceEpoch;
+    return File('$path/recording$timeStamp.json');
   }
 
   void _stopRecording() {
@@ -386,8 +390,19 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
 
     try {
       final file = await _localFile;
+      final initialWidgets = <String, Map<String, dynamic>>{};
 
-      // group by timestamp
+      Map<int, NT4Topic> allTopics = widget.ntConnection.announcedTopics();
+
+      for (var topic in allTopics.values) {
+        final lastValue = widget.ntConnection.getLastAnnouncedValue(topic.name);
+
+        initialWidgets[topic.name] = {
+          'type': topic.type,
+          'value': lastValue,
+        };
+      }
+
       final Map<int, Map<String, dynamic>> grouped = {};
 
       for (final entry in recorder) {
@@ -409,7 +424,6 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
         };
       }
 
-      // convert to list + sort
       final frames = grouped.values.toList()
         ..sort(
             (a, b) => (a['timestamp'] as int).compareTo(b['timestamp'] as int));
@@ -418,6 +432,7 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
       final end = frames.last['timestamp'] as int;
 
       final jsonString = JsonEncoder.withIndent('  ').convert({
+        'initialWidgets': initialWidgets, // 🟩 NEW
         'recording_start': start,
         'recording_end': end,
         'sample_count': recorder.length,
@@ -444,8 +459,6 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
   }
 
   void _record() async {
-    // Don't allow recording during playback
-
     if (widget.ntConnection.isInPlaybackMode) {
       _showWarningNotification(
         title: 'Cannot Record',
@@ -538,14 +551,61 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
         ..sort(
             (a, b) => (a['timestamp'] as int).compareTo(b['timestamp'] as int));
 
+      // First, prescan to get widget types from .type topics
+      preScanRecording(playbackData);
+
+      // 🟩 CRITICAL: Only create widgets for topics with REGISTERED widget types
+      final initialWidgets = rec['initialWidgets'] as Map<String, dynamic>?;
+
+      if (initialWidgets != null) {
+        // Get all topics that have a .type topic with a registered widget type
+        final Set<String> topicsToCreate = {};
+
+        initialWidgets.forEach((topicName, payload) {
+          if (topicName.endsWith('/.type')) {
+            // Extract base topic name
+            final baseTopic = topicName.substring(0, topicName.length - 6);
+            final widgetType = widgetTypes[baseTopic];
+
+            // 🟩 Only add if it's a registered widget type
+            if (widgetType != null &&
+                NTWidgetBuilder.isRegistered(widgetType)) {
+              topicsToCreate.add(baseTopic);
+              print(
+                  '✅ Will create widget for: $baseTopic with type: $widgetType');
+            }
+          }
+        });
+
+        // Now create widgets only for the registered topics
+        for (final topicName in topicsToCreate) {
+          final widgetType = widgetTypes[topicName];
+          if (widgetType == null) continue;
+
+          final topicData = initialWidgets[topicName];
+          final ntType = topicData?['type'] as String?;
+          final value = topicData?['value'];
+
+          print('🟢 Creating widget: $topicName, Widget type: $widgetType');
+
+          // Call ensureWidgetExists for this topic
+          widget.ntConnection.ensureWidgetExists(
+            topicName,
+            widgetType,
+            value,
+          );
+        }
+      }
+
       playbackIndex = 0;
-      print("Loaded ${playbackData.length} playback frames.");
 
       _showInfoNotification(
         title: 'Playback Loaded',
         message: 'Loaded ${playbackData.length} frames',
         width: 300,
       );
+
+      setState(() {}); // Refresh UI to show the widgets
     } catch (e) {
       print('Error loading playback: $e');
       _showErrorNotification(
@@ -627,18 +687,116 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
     widget.ntConnection.exitPlaybackMode();
   }
 
-  void updateWidgetsFromPlayback(Map<String, dynamic> row) {
-    final topics = row['topics'] as Map<String, dynamic>?;
+  void preScanRecording(List<Map<String, dynamic>> rows) {
+    final Map<String, String> detectedWidgetTypes = {};
 
+    for (final row in rows) {
+      final topics = row['topics'] as Map<String, dynamic>?;
+      if (topics == null) continue;
+
+      topics.forEach((topicName, payload) {
+        if (topicName.endsWith('/.type')) {
+          final base = topicName.substring(0, topicName.length - 6);
+          final widgetTypeValue = payload['value'] as String;
+          detectedWidgetTypes[base] = widgetTypeValue;
+          print('✅ Found widget type: $base = $widgetTypeValue');
+        }
+      });
+    }
+
+    widgetTypes = detectedWidgetTypes;
+    print(
+        '📊 PreScan complete. Found ${detectedWidgetTypes.length} widget types');
+    print('Widget types map: $detectedWidgetTypes');
+  }
+
+  Future<void> updateWidgetsFromPlayback(Map<String, dynamic> row) async {
+    final topics = row['topics'] as Map<String, dynamic>?;
     if (topics == null) return;
 
-    topics.forEach((topicName, payload) {
-      final value = payload['value'];
-      final type = payload['type'] ?? '';
+    final List<_PlaybackEntry> buffer = [];
 
-      widget.ntConnection.sendPlaybackValue(topicName, value, type);
-    });
+    for (final entry in topics.entries) {
+      final topicName = entry.key;
+
+      if (topicName.endsWith('/.type')) continue;
+      final value = entry.value['value'];
+      final type = entry.value['type'] ?? '';
+      final widgetType = widgetTypes[topicName] ?? "Text View";
+
+      if (lastSentValues[topicName] != value) {
+        lastSentValues[topicName] = value;
+
+        buffer.add(
+          _PlaybackEntry(
+            topic: topicName,
+            value: value,
+            type: type,
+            widgetType: widgetType,
+          ),
+        );
+      }
+    }
+
+    for (final entry in buffer) {
+      widget.ntConnection.sendPlaybackValue(
+        entry.topic,
+        entry.value,
+        entry.type,
+        entry.widgetType,
+      );
+    }
   }
+
+  /* void updateWidgetsFromPlayback(Map<String, dynamic> row) {
+  final topics = row['topics'] as Map<String, dynamic>?;
+
+  if (topics == null) return;
+
+  topics.forEach((topicName, payload) {
+    final value = payload['value'];
+    final type = payload['type'] ?? '';
+
+    // --- 1. Check for .type topics (widget type info) ---
+    if (topicName.endsWith('.type')) {
+      final widgetType = value as String;
+
+      // If we don't already have a widget model for this topic, create it
+      if (!widgetsModels.containsKey(topicName)) {
+        final widgetModel = NTWidgetBuilder.createWidgetModel(
+          widgetType,
+          topicName,
+          widget.ntConnection,
+          widget.preferences,
+        );
+
+        final widgetInstance = getWidgetFromModel(widgetModel);
+
+        // Add to your UI
+        setState(() {
+          widgetsList.add(widgetInstance);
+          widgetsModels[topicName] = widgetModel;
+        });
+      }
+
+      // no need to process this as a normal value
+      return;
+    }
+
+    // --- 2. Normal topic values ---
+    final model = widgetsModels[topicName];
+    if (model != null) {
+      // Assuming your NTWidgetModel has a method to push values
+      if (model is SingleTopicNTWidgetModel) {
+        model.ntTopic?.injectValue(value); // or whatever method you have
+      }
+    }
+
+    // --- 3. Optional: send value to NTConnection if needed ---
+    widget.ntConnection.sendPlaybackValue(topicName, value, type);
+  });
+}
+*/
 
   Future<String?> pickFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -2876,4 +3034,18 @@ class _AddWidgetDialogState extends State<_AddWidgetDialog> {
       ),
     );
   }
+}
+
+class _PlaybackEntry {
+  final String topic;
+  final dynamic value;
+  final String type;
+  final String widgetType;
+
+  _PlaybackEntry({
+    required this.topic,
+    required this.value,
+    required this.type,
+    required this.widgetType,
+  });
 }

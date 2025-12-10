@@ -87,6 +87,8 @@ class NTWidgetBuilder {
 
   NTWidgetBuilder._();
 
+  static get registeredWidgetTypes => _widgetNameBuildMap;
+
   static bool _initialized = false;
   static void ensureInitialized() {
     if (_initialized) {
@@ -210,7 +212,6 @@ class NTWidgetBuilder {
       defaultWidth: 2,
       defaultHeight: 2,
     );
-
 
     register(
         name: PidFfConfigWidget.widgetType,
