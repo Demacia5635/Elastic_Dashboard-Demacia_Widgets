@@ -668,8 +668,10 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
       }
     } finally {
       setState(() => isPlaying = false);
-      // CRITICAL: Exit playback mode to resume live NT updates
       widget.ntConnection.exitPlaybackMode();
+
+      // 🟢 NEW: Refresh values after playback completes
+      _refreshLiveValues();
     }
   }
 
@@ -684,7 +686,32 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
       playbackIndex = 0;
     });
 
+    _refreshLiveValues();
     widget.ntConnection.exitPlaybackMode();
+  }
+
+  void _refreshLiveValues() {
+    Map<int, NT4Topic> allTopics = widget.ntConnection.announcedTopics();
+
+    for (var topic in allTopics.values) {
+      final currentValue =
+          widget.ntConnection.getLastAnnouncedValue(topic.name);
+
+      if (currentValue != null) {
+        // Force update the widget with the current live value
+        widget.ntConnection.sendPlaybackValue(
+          topic.name,
+          currentValue,
+          topic.type,
+          widgetTypes[topic.name] ?? "Text View",
+        );
+      }
+    }
+
+    // Clear the playback cache
+    lastSentValues.clear();
+
+    setState(() {});
   }
 
   void preScanRecording(List<Map<String, dynamic>> rows) {
