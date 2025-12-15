@@ -4,7 +4,8 @@ import 'package:elastic_dashboard/widgets/nt_widget.dart';
 
 class limelite extends NTWidget {
 
-  NT4Topic 
+  NT4Topic exsemple = nt4Client.subscribePeriodic("exsmple", 0.1);
+  double exsemple = exsemple.getValue() ?? 0.0;
 
   private Color backGroubdndColor;
   private Color textColor;
