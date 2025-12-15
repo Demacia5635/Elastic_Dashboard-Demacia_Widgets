@@ -49,6 +49,8 @@ import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/text_display.d
 import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/toggle_button.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/toggle_switch.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/voltage_view.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/array_graph.dart';
+
 
 typedef NTModelJsonProvider = NTWidgetModel Function({
   required Map<String, dynamic> jsonData,
@@ -341,6 +343,15 @@ class NTWidgetBuilder {
         minHeight: _normalSize * 3,
         defaultWidth: 2,
         defaultHeight: 3);
+    register(
+        name: ArrayGraphModel.widgetType, // 'Array Graph'
+        model: ArrayGraphModel.new,
+        widget: ArrayGraphWidget.new,
+        fromJson: ArrayGraphModel.fromJson,
+        minWidth: _normalSize * 2,
+        minHeight: _normalSize * 2,
+        defaultWidth: 2,
+        defaultHeight: 2,);
 
     register(
         name: RelayWidget.widgetType,
