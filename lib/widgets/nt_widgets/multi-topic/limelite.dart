@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:elastic_dashboard/services/nt4_client.dart'
 import 'package:elastic_dashboard/widgets/nt_widget.dart';
 
-class limeLotte extends NTWidget {
+class limelite extends NTWidget {
 
   NT4Topic 
 
@@ -10,7 +10,7 @@ class limeLotte extends NTWidget {
   private Color textColor;
   private String text;
 
-  limeLotte({
+  limelite({
     super.key,
     required super.topic,
     super.dataType,
@@ -22,6 +22,3 @@ class limeLotte extends NTWidget {
 
 }
 
-class limeLite{
-    
-}
