@@ -1,3 +1,4 @@
+import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/array_graphs.dart';
 import 'package:flutter/material.dart';
 
 import 'package:dot_cast/dot_cast.dart';
@@ -104,6 +105,12 @@ class NTWidgetBuilder {
         fromJson: GraphModel.fromJson,
         minWidth: _normalSize * 2,
         minHeight: _normalSize * 2);
+
+    register(
+        name: ArrayGraphWidget.widgetType,
+        model: ArrayGraphModel.new,
+        widget: ArrayGraphWidget.new,
+        fromJson: ArrayGraphModel.fromJson);
 
     register(
         name: MatchTimeWidget.widgetType,

@@ -1,3 +1,4 @@
+import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/array_graphs.dart';
 import 'package:flutter/material.dart';
 
 import 'package:dot_cast/dot_cast.dart';
@@ -209,6 +210,7 @@ class SingleTopicNTWidgetModel extends NTWidgetModel {
       case NT4TypeStr.kIntArr:
         return [
           TextDisplay.widgetType,
+          ArrayGraphWidget.widgetType,
         ];
     }
 
