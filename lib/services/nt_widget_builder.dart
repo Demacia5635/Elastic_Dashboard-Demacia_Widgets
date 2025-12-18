@@ -1,4 +1,5 @@
 import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/array_graphs.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/array_list_layout.dart';
 import 'package:flutter/material.dart';
 
 import 'package:dot_cast/dot_cast.dart';
@@ -111,6 +112,18 @@ class NTWidgetBuilder {
         model: ArrayGraphModel.new,
         widget: ArrayGraphWidget.new,
         fromJson: ArrayGraphModel.fromJson);
+
+    register(
+      name: ArrayListWidget.widgetType,
+      model: ArrayListModel.new,
+      widget: ArrayListWidget.new,
+      fromJson: ArrayListModel.fromJson,
+      minWidth: _normalSize,
+      minHeight: _normalSize,
+      defaultWidth: 2,
+      defaultHeight: 2,
+    );
+
 
     register(
         name: MatchTimeWidget.widgetType,

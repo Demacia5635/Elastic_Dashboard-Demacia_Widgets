@@ -1,4 +1,5 @@
 import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/array_graphs.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/array_list_layout.dart';
 import 'package:flutter/material.dart';
 
 import 'package:dot_cast/dot_cast.dart';
@@ -211,6 +212,7 @@ class SingleTopicNTWidgetModel extends NTWidgetModel {
         return [
           TextDisplay.widgetType,
           ArrayGraphWidget.widgetType,
+          ArrayListWidget.widgetType,
         ];
     }
 
