@@ -7,9 +7,9 @@ import 'package:elastic_dashboard/services/nt4_client.dart';
 import 'package:elastic_dashboard/widgets/dialog_widgets/dialog_toggle_switch.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/nt_widget.dart';
 
-class Limelight extends MultiTopicNTWidgetModel {
+class LimelightModel extends MultiTopicNTWidgetModel {
   @override
-  String type = Limelight.widgetType
+  String type = LimelightWidget.widgetType;
 
   double get txTopicName => '$topic/tx';
   double get tyTopicName => '$topic/ty';
@@ -42,5 +42,11 @@ class Limelight extends MultiTopicNTWidgetModel {
   });
 
 
+
+}
+class LimelightWiget extends NTWidget{
+  final static String widgetType = "Limelight";
+
+  const LimelightWidget();
 
 }
