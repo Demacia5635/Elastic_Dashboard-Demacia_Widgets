@@ -9,10 +9,10 @@ import 'package:elastic_dashboard/widgets/nt_widgets/nt_widget.dart';
 
 class LimelightModel extends MultiTopicNTWidgetModel {
   @override
-  String type = LimelightWidget.widgetType;
+  String type = LimelightWiget.widgetType;
 
-  double get txTopicName => '$topic/tx';
-  double get tyTopicName => '$topic/ty';
+  String get txTopicName => '$topic/tx';
+  String get tyTopicName => '$topic/ty';
   String get pipelineTopicName => '$topic/pipeline';
   String get sensor_grainTopicName => '$topic/sensor_grain';
   String get black_level_offsetTopicName => '$topic/black_level_offset';
@@ -24,6 +24,7 @@ class LimelightModel extends MultiTopicNTWidgetModel {
   late NT4Subscription sensor_grainSubscription;
   late NT4Subscription black_level_offsetSubscription;
   late NT4Subscription expusureSubscription;
+
   @override
     List<NT4Subscription> get subscriptions => [
         txSubscription,
@@ -33,20 +34,24 @@ class LimelightModel extends MultiTopicNTWidgetModel {
         black_level_offsetSubscription,
         expusureSubscription,
       ];
-      Limelight({
+      LimelightModel({
     required super.ntConnection,
     required super.preferences,
     required super.topic,
     super.dataType,
     super.period,
   });
-
-
-
 }
-class LimelightWiget extends NTWidget{
-  final static String widgetType = "Limelight";
 
-  const LimelightWidget();
+
+class LimelightWiget extends NTWidget{
+  static const String widgetType = "Limelight";
+  
+  @override
+  Widget build(BuildContext context) {
+    // TODO: implement build
+    throw UnimplementedError();
+  }
+
 
 }
