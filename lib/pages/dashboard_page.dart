@@ -562,29 +562,28 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
       if (initialWidgets != null) {
         final Set<String> topicsToCreate = {};
 
+        // 🟢 ONLY collect topics that have a .type entry
         initialWidgets.forEach((topicName, payload) {
           if (topicName.endsWith('/.type')) {
             // Extract base topic name
             final baseTopic = topicName.substring(0, topicName.length - 6);
-            final widgetType = widgetTypes[baseTopic];
+            final widgetTypeValue = payload['value'] as String?;
 
-            // 🟩 Only add if it's a registered widget type
-            if (widgetType != null &&
-                NTWidgetBuilder.isRegistered(widgetType)) {
+            if (widgetTypeValue != null) {
               topicsToCreate.add(baseTopic);
               print(
-                  '✅ Will create widget for: $baseTopic with type: $widgetType');
+                  '✅ Will create widget for: $baseTopic with type: $widgetTypeValue');
             }
           }
         });
 
-        // Now create widgets only for the registered topics
+        // Now create widgets only for the parent topics (those with .type)
         for (final topicName in topicsToCreate) {
           final widgetType = widgetTypes[topicName];
           if (widgetType == null) continue;
 
+          // Get the initial value from the parent topic (not subtopics)
           final topicData = initialWidgets[topicName];
-          final ntType = topicData?['type'] as String?;
           final value = topicData?['value'];
 
           print('🟢 Creating widget: $topicName, Widget type: $widgetType');
