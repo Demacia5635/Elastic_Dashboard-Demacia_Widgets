@@ -344,7 +344,6 @@ class _ArrayGraphWidgetGraph extends StatefulWidget {
 
 class _ArrayGraphWidgetGraphState extends State<_ArrayGraphWidgetGraph>
     with WidgetsBindingObserver {
-  ChartSeriesController? _seriesController;
   late List<_GraphPoint> _graphData;
   late List<_GraphPoint> _allHistoricalData;
   StreamSubscription<Object?>? _subscriptionListener;
@@ -558,7 +557,6 @@ class _ArrayGraphWidgetGraphState extends State<_ArrayGraphWidgetGraph>
         animationDuration: 0.0,
         animationDelay: 0.0,
         sortingOrder: SortingOrder.ascending,
-        onRendererCreated: (controller) => _seriesController = controller,
         color: widget.mainColor,
         width: widget.lineWidth,
         dataSource: _graphData,
