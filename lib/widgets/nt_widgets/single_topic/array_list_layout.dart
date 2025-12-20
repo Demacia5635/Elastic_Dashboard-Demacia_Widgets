@@ -14,14 +14,9 @@ class ArrayListModel extends SingleTopicNTWidgetModel {
 
   late Color _mainColor;
   int _selectedIndex = 0;
-  List<String> keyOrder = []; // Store the user's preferred order
+  List<String> keyOrder = [];
 
   Color get mainColor => _mainColor;
-
-  set mainColor(Color value) {
-    _mainColor = value;
-    refresh();
-  }
 
   int get selectedIndex => _selectedIndex;
 
@@ -34,7 +29,6 @@ class ArrayListModel extends SingleTopicNTWidgetModel {
     required super.ntConnection,
     required super.preferences,
     required super.topic,
-    // Default to a dark grey/black similar to the Talon background
     Color mainColor = const Color(0xFF353535),
     int selectedIndex = 0,
     super.dataType,
@@ -63,7 +57,6 @@ class ArrayListModel extends SingleTopicNTWidgetModel {
     };
   }
 
-  // Helper to ensure all keys found in data are in our order list
   void updateKeys(List<String> newKeys) {
     bool changed = false;
     for (String key in newKeys) {
@@ -149,7 +142,7 @@ class _ReorderKeysDialogState extends State<_ReorderKeysDialog> {
         TextButton(
           onPressed: () {
             widget.model.keyOrder = _currentOrder;
-            widget.model.refresh(); // Update the widget
+            widget.model.refresh();
             Navigator.of(context).pop();
           },
           child: const Text("Save"),
@@ -172,7 +165,7 @@ class ArrayListWidget extends NTWidget {
       subscription: model.subscription,
       mainColor: model.mainColor,
       selectedIndex: model.selectedIndex,
-      model: model, // Pass model to access keyOrder
+      model: model,
       onIndexChanged: (index) {
         model.selectedIndex = index;
       },
@@ -201,6 +194,7 @@ class _ArrayListWidgetGraph extends StatefulWidget {
 
 class _ArrayListWidgetGraphState extends State<_ArrayListWidgetGraph> {
   StreamSubscription<Object?>? _subscriptionListener;
+  final SearchController _searchController = SearchController();
 
   List<List<MapEntry<String, dynamic>>> lists = [];
   List<String> names = [];
@@ -208,12 +202,18 @@ class _ArrayListWidgetGraphState extends State<_ArrayListWidgetGraph> {
   @override
   void initState() {
     super.initState();
+    
+    if (widget.subscription?.value != null) {
+      _parseData(widget.subscription!.value);
+    }
+
     _initializeListener();
   }
 
   @override
   void dispose() {
     _subscriptionListener?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -226,56 +226,60 @@ class _ArrayListWidgetGraphState extends State<_ArrayListWidgetGraph> {
     super.didUpdateWidget(oldWidget);
   }
 
+  void _parseData(Object? data) {
+    if (data == null) return;
+
+    List<String> nameGroups =
+        widget.subscription!.topic.split("/").last.split(" | ");
+    
+    List<List<MapEntry<String, dynamic>>> newLists = [];
+    List<String> newNames = [];
+
+    int c = 0;
+    List<String> foundKeys = [];
+
+    for (String nameGroup in nameGroups) {
+      String groupName = nameGroup.split(":")[0];
+      newNames.add(groupName);
+
+      String content = nameGroup.split(": ")[1];
+      List<String> itemNames = content.split(", ");
+      List<MapEntry<String, dynamic>> currentGroupEntries = [];
+
+      for (String itemName in itemNames) {
+        if (tryCast<List<dynamic>>(data)!.length > c) {
+          var value = tryCast<List<dynamic>>(data)![c];
+          currentGroupEntries.add(MapEntry(itemName, value));
+          foundKeys.add(itemName);
+        }
+        c++;
+      }
+
+      currentGroupEntries.sort((a, b) {
+        int indexA = widget.model.keyOrder.indexOf(a.key);
+        int indexB = widget.model.keyOrder.indexOf(b.key);
+
+        if (indexA == -1) indexA = 999;
+        if (indexB == -1) indexB = 999;
+
+        return indexA.compareTo(indexB);
+      });
+
+      newLists.add(currentGroupEntries);
+    }
+
+    widget.model.updateKeys(foundKeys);
+    
+    lists = newLists;
+    names = newNames;
+  }
+
   void _initializeListener() {
     _subscriptionListener?.cancel();
     _subscriptionListener =
         widget.subscription?.periodicStream(yieldAll: true).listen((data) {
       if (data != null) {
-        List<String> nameGroups =
-            widget.subscription!.topic.split("/").last.split(" | ");
-        lists.clear();
-        names.clear();
-
-        int c = 0;
-
-        // Collect all found keys to update the model
-        List<String> foundKeys = [];
-
-        for (String nameGroup in nameGroups) {
-          String groupName = nameGroup.split(":")[0];
-          names.add(groupName);
-
-          String content = nameGroup.split(": ")[1];
-          List<String> itemNames = content.split(", ");
-          List<MapEntry<String, dynamic>> currentGroupEntries = [];
-
-          for (String itemName in itemNames) {
-            if (tryCast<List<dynamic>>(data)!.length > c) {
-              var value = tryCast<List<dynamic>>(data)![c];
-              currentGroupEntries.add(MapEntry(itemName, value));
-              foundKeys.add(itemName);
-            }
-            c++;
-          }
-
-          // Sort the entries based on the model's keyOrder
-          currentGroupEntries.sort((a, b) {
-            int indexA = widget.model.keyOrder.indexOf(a.key);
-            int indexB = widget.model.keyOrder.indexOf(b.key);
-
-            // If key not found in order list, put it at the end
-            if (indexA == -1) indexA = 999;
-            if (indexB == -1) indexB = 999;
-
-            return indexA.compareTo(indexB);
-          });
-
-          lists.add(currentGroupEntries);
-        }
-
-        // Update model with any new keys found so they appear in reorder list
-        widget.model.updateKeys(foundKeys);
-
+        _parseData(data);
         if (mounted) setState(() {});
       }
     });
@@ -285,7 +289,6 @@ class _ArrayListWidgetGraphState extends State<_ArrayListWidgetGraph> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // --- Header: Index Selector (Reverted to classic line style) ---
         Container(
           height: 40,
           padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
@@ -293,27 +296,81 @@ class _ArrayListWidgetGraphState extends State<_ArrayListWidgetGraph> {
             children: [
               const Text('Index: ', style: TextStyle(fontSize: 12)),
               Expanded(
-                child: DropdownButton<int>(
-                  value: widget.selectedIndex < lists.length
-                      ? widget.selectedIndex
-                      : (lists.isNotEmpty ? 0 : null),
-                  isExpanded: true,
-                  isDense: true,
-                  hint: const Text('Choose Index'),
-                  items: lists.isNotEmpty
-                      ? List.generate(
-                          lists.length,
-                          (index) => DropdownMenuItem<int>(
-                            value: index,
-                            child: Text(
-                                '${index < names.length ? names[index] : "Group $index"}:'),
+                child: SearchAnchor(
+                  searchController: _searchController,
+                  viewBackgroundColor: const Color(0xFF1E1E1E),
+                  viewHintText: 'Search groups...',
+                  headerTextStyle: const TextStyle(color: Colors.white),
+                  
+                  builder: (BuildContext context, SearchController controller) {
+                    return InkWell(
+                      onTap: () {
+                        controller.clear(); 
+                        controller.openView();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 0.0, vertical: 4.0),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: Colors.white,
+                              width: 1.0,
+                            ),
                           ),
-                        )
-                      : null,
-                  onChanged: (value) {
-                    if (value != null) {
-                      widget.onIndexChanged(value);
-                    }
+                        ),
+                        child: Row(
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(right: 8.0),
+                              child: Icon(Icons.search, 
+                                  color: Colors.white70, size: 16),
+                            ),
+                            Expanded(
+                              child: Text(
+                                widget.selectedIndex < names.length
+                                    ? names[widget.selectedIndex]
+                                    : (lists.isNotEmpty
+                                        ? "Select Group..."
+                                        : "No Data"),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const Icon(Icons.arrow_drop_down,
+                                color: Colors.white),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                  
+                  suggestionsBuilder:
+                      (BuildContext context, SearchController controller) {
+                    final keyword = controller.text.toLowerCase();
+
+                    final List<String> matchingNames = names
+                        .where((name) => name.toLowerCase().contains(keyword))
+                        .toList();
+
+                    return matchingNames.map((String item) {
+                      final int originalIndex = names.indexOf(item);
+
+                      return ListTile(
+                        title: Text(item,
+                            style: const TextStyle(color: Colors.white)),
+                        onTap: () {
+                          setState(() {
+                            widget.onIndexChanged(originalIndex);
+                            controller.closeView(item);
+                          });
+                        },
+                      );
+                    }).toList();
                   },
                 ),
               ),
@@ -332,38 +389,33 @@ class _ArrayListWidgetGraphState extends State<_ArrayListWidgetGraph> {
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8.0),
-                      // Wrap entire item in a Container box
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12.0, vertical: 10.0),
                         decoration: BoxDecoration(
-                          // Lighter background color for contrast against main background
                           color: const Color(0xFF353535),
                           borderRadius: BorderRadius.circular(6),
-                          // Subtle border to define edges
                           border: Border.all(color: Colors.white12, width: 0.5),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 1. Label
                             Text(
                               pair.key,
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey[500], // Muted grey label
+                                color: Colors.grey[500],
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                             const SizedBox(height: 2),
-                            // 2. Value
                             Text(
                               tryCast<num>(pair.value)?.toStringAsFixed(2) ??
                                   pair.value.toString(),
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.grey[300], // Grayer text
+                                color: Colors.grey[300],
                               ),
                             ),
                           ],

@@ -348,7 +348,8 @@ class _ArrayGraphWidgetGraphState extends State<_ArrayGraphWidgetGraph>
   late List<_GraphPoint> _allHistoricalData;
   StreamSubscription<Object?>? _subscriptionListener;
 
-  // Time scrolling variables
+  final SearchController _searchController = SearchController();
+
   double _timeScrollPosition = 0.0;
   bool _isLiveMode = true;
   Timer? _liveUpdateTimer;
@@ -388,6 +389,7 @@ class _ArrayGraphWidgetGraphState extends State<_ArrayGraphWidgetGraph>
     WidgetsBinding.instance.removeObserver(this);
     _subscriptionListener?.cancel();
     _liveUpdateTimer?.cancel();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -413,6 +415,22 @@ class _ArrayGraphWidgetGraphState extends State<_ArrayGraphWidgetGraph>
       );
       setState(() {});
     }
+  }
+
+  String _getLabelForIndex(int index) {
+    if (lists.isEmpty) return "Index $index";
+
+    int count = 0;
+    for (int i = 0; i < lists.length; i++) {
+      if (index < count + lists[i].length) {
+        int subIndex = index - count;
+        String groupName = i < names.length ? "${names[i]}: " : "";
+        String itemKey = lists[i][subIndex].key;
+        return groupName + itemKey;
+      }
+      count += lists[i].length;
+    }
+    return "Index $index";
   }
 
   double _getValueFromArray(Object? data) {
@@ -479,13 +497,14 @@ class _ArrayGraphWidgetGraphState extends State<_ArrayGraphWidgetGraph>
 
         _allHistoricalData.removeWhere((point) => point.x < cutoffTime);
 
-        List<String> nameGroups = widget.subscription!.topic.split("/").last.split(" | ");
+        List<String> nameGroups =
+            widget.subscription!.topic.split("/").last.split(" | ");
         lists.clear();
         int c = 0;
-        for (String nameGroup in nameGroups){
+        for (String nameGroup in nameGroups) {
           String groupName = nameGroup.split(":")[0];
           names.add(groupName);
-          
+
           String content = nameGroup.split(": ")[1];
           List<String> itemNames = content.split(", ");
           List<MapEntry<String, dynamic>> currentGroupEntries = [];
@@ -497,7 +516,6 @@ class _ArrayGraphWidgetGraphState extends State<_ArrayGraphWidgetGraph>
           lists.add(currentGroupEntries);
         }
 
-        // Update visible data only if in live mode
         if (_isLiveMode) {
           _updateVisibleData();
         }
@@ -534,7 +552,8 @@ class _ArrayGraphWidgetGraphState extends State<_ArrayGraphWidgetGraph>
     final double windowStartTime = windowEndTime - timeWindow;
 
     final List<_GraphPoint> displayData = _allHistoricalData
-        .where((point) => point.x >= windowStartTime && point.x <= windowEndTime)
+        .where(
+            (point) => point.x >= windowStartTime && point.x <= windowEndTime)
         .toList();
 
     if (displayData.isEmpty) return;
@@ -603,7 +622,6 @@ class _ArrayGraphWidgetGraphState extends State<_ArrayGraphWidgetGraph>
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Index selector dropdown
         Container(
           height: 40,
           padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
@@ -611,46 +629,78 @@ class _ArrayGraphWidgetGraphState extends State<_ArrayGraphWidgetGraph>
             children: [
               const Text('Index: ', style: TextStyle(fontSize: 12)),
               Expanded(
-                child: DropdownButton<int>(
-                  value: widget.selectedIndex < _arrayLength
-                      ? widget.selectedIndex
-                      : (_arrayLength > 0 ? 0 : null),
-                  isExpanded: true,
-                  isDense: true,
-                  hint: const Text('Choose Index'),
-                  items: _arrayLength > 0
-                      ? List.generate(
-                          _arrayLength,
-                          (index) {
-                            String label = "Index $index"; 
-                            int count = 0;
+                child: SearchAnchor(
+                  searchController: _searchController,
+                  viewBackgroundColor: const Color(0xFF1E1E1E),
+                  viewHintText: 'Search fields...',
+                  headerTextStyle: const TextStyle(color: Colors.white),
+                  builder: (BuildContext context, SearchController controller) {
+                    return InkWell(
+                      onTap: () {
+                        controller.clear();
+                        controller.openView();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 0.0, vertical: 4.0),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(
+                              color: Colors.white,
+                              width: 1.0,
+                            ),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(right: 8.0),
+                              child: Icon(Icons.search,
+                                  color: Colors.white70, size: 16),
+                            ),
+                            Expanded(
+                              child: Text(
+                                _arrayLength > 0
+                                    ? _getLabelForIndex(widget.selectedIndex)
+                                    : "No Data",
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const Icon(Icons.arrow_drop_down,
+                                color: Colors.white),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                  suggestionsBuilder:
+                      (BuildContext context, SearchController controller) {
+                    final keyword = controller.text.toLowerCase();
 
-                            for (int i = 0; i < lists.length; i++) {
-                              if (index < count + lists[i].length) {
-                                int subIndex = index - count;
+                    List<Widget> results = [];
+                    for (int i = 0; i < _arrayLength; i++) {
+                      String label = _getLabelForIndex(i);
 
-                                String groupName = i < names.length ? "${names[i]}: " : "";
-                                
-                                String itemKey = lists[i][subIndex].key;
-
-                                label = groupName + itemKey;
-                                break;
-                              }
-                              count += lists[i].length;
-                            }
-
-                            return DropdownMenuItem<int>(
-                              value: index,
-                              child: Text(label), 
-                            );
+                      if (label.toLowerCase().contains(keyword)) {
+                        results.add(ListTile(
+                          title: Text(label,
+                              style: const TextStyle(color: Colors.white)),
+                          onTap: () {
+                            setState(() {
+                              widget.onIndexChanged(i);
+                              _resetGraphData();
+                              controller.closeView(label);
+                            });
                           },
-                        )
-                      : null,
-                  onChanged: (value) {
-                    if (value != null) {
-                      widget.onIndexChanged(value);
-                      _resetGraphData();
+                        ));
+                      }
                     }
+                    return results;
                   },
                 ),
               ),
