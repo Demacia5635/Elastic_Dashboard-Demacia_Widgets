@@ -12,7 +12,7 @@ import 'package:elastic_dashboard/widgets/dialog_widgets/dialog_color_picker.dar
 import 'package:elastic_dashboard/widgets/dialog_widgets/dialog_text_input.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/nt_widget.dart';
 
-class ArrayGraphModel extends SingleTopicNTWidgetModel {
+class ArrayListModel extends SingleTopicNTWidgetModel {
   @override
   String type = ArrayListWidget.widgetType;
 
@@ -71,7 +71,7 @@ class ArrayGraphModel extends SingleTopicNTWidgetModel {
   List<_GraphPoint> _graphData = [];
   _ArrayListWidgetGraph? _graphWidget;
 
-  ArrayGraphModel({
+  ArrayListModel({
     required super.ntConnection,
     required super.preferences,
     required super.topic,
@@ -93,7 +93,7 @@ class ArrayGraphModel extends SingleTopicNTWidgetModel {
         _selectedIndex = selectedIndex,
         super();
 
-  ArrayGraphModel.fromJson({
+  ArrayListModel.fromJson({
     required super.ntConnection,
     required super.preferences,
     required Map<String, dynamic> jsonData,
@@ -263,13 +263,13 @@ class ArrayGraphModel extends SingleTopicNTWidgetModel {
 }
 
 class ArrayListWidget extends NTWidget {
-  static const String widgetType = 'Array Graph';
+  static const String widgetType = 'Array List';
 
   const ArrayListWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
-    ArrayGraphModel model = cast(context.watch<NTWidgetModel>());
+    ArrayListModel model = cast(context.watch<NTWidgetModel>());
 
     List<_GraphPoint>? currentGraphData = model._graphWidget?.getCurrentData();
 
@@ -352,7 +352,6 @@ class _ArrayListWidgetGraphState extends State<_ArrayListWidgetGraph>
   bool _isLiveMode = true;
   Timer? _liveUpdateTimer;
 
-  
   List<List<MapEntry<String, dynamic>>> lists = [];
   List<String> names = [];
 
@@ -522,14 +521,11 @@ class _ArrayListWidgetGraphState extends State<_ArrayListWidgetGraph>
 
     final double windowStartTime = windowEndTime - timeWindow;
 
-    final List<_GraphPoint> filteredData = _allHistoricalData
-        .where(
-            (point) => point.x >= windowStartTime && point.x <= windowEndTime)
+    final List<_GraphPoint> displayData = _allHistoricalData
+        .where((point) => point.x >= windowStartTime && point.x <= windowEndTime)
         .toList();
 
-    if (filteredData.isEmpty) return;
-
-    final List<_GraphPoint> displayData = List.of(filteredData);
+    if (displayData.isEmpty) return;
 
     if (displayData.first.x > windowStartTime) {
       displayData.insert(
@@ -556,7 +552,7 @@ class _ArrayListWidgetGraphState extends State<_ArrayListWidgetGraph>
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Index selector dropdown
+        // --- Header: Index Selector ---
         Container(
           height: 40,
           padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
@@ -576,7 +572,8 @@ class _ArrayListWidgetGraphState extends State<_ArrayListWidgetGraph>
                           lists.length,
                           (index) => DropdownMenuItem<int>(
                             value: index,
-                            child: Text('${names[index]}:'),
+                            child: Text(
+                                '${index < names.length ? names[index] : "Index $index"}:'),
                           ),
                         )
                       : null,
@@ -588,62 +585,71 @@ class _ArrayListWidgetGraphState extends State<_ArrayListWidgetGraph>
                   },
                 ),
               ),
-              const SizedBox(width: 10), // Add some spacing
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  // Get the latest value from graph data, formatted to 2 decimal places
-                  _graphData.isNotEmpty
-                      ? _graphData.last.y.toStringAsFixed(2)
-                      : '0.00',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: widget.mainColor, // Matches the graph line color
-                  ),
-                ),
-              ),
-
             ],
           ),
         ),
 
+        // --- DATA DISPLAY (Scrollable List) ---
         Expanded(
           child: lists.isNotEmpty && widget.selectedIndex < lists.length
-              ? Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly, 
-                  children: List.generate(
-                    lists[widget.selectedIndex].length,
-                    (index) {
-                      final pair = lists[widget.selectedIndex][index];
-                      
-                      return Expanded(
-                        child: Center(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                "${pair.key}: ${tryCast<num>(pair.value)?.toStringAsFixed(2) ?? pair.value}",
-                                style: TextStyle(
-                                  fontSize: 24, 
-                                  fontWeight: FontWeight.bold,
-                                  color: widget.mainColor,
+              ? ListView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  itemCount: lists[widget.selectedIndex].length,
+                  itemBuilder: (context, index) {
+                    final pair = lists[widget.selectedIndex][index];
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 1. The Label (e.g. "Position")
+                          Text(
+                            pair.key,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade400,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 4), // Small gap
+                          
+                          // 2. The Value Box
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10.0, vertical: 8.0),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF252525), // Dark background
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: Colors.grey, // Underline
+                                  width: 1.5,
                                 ),
+                              ),
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(4),
+                                topRight: Radius.circular(4),
+                              ),
+                            ),
+                            child: Text(
+                              tryCast<num>(pair.value)?.toStringAsFixed(2) ??
+                                  pair.value.toString(),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
                               ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
+                        ],
+                      ),
+                    );
+                  },
                 )
               : const Center(
-                  child: Text("Waiting for data...", style: TextStyle(color: Colors.white)),
+                  child: Text("Waiting for data...",
+                      style: TextStyle(color: Colors.white)),
                 ),
         ),
       ],

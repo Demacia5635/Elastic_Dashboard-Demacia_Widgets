@@ -355,6 +355,9 @@ class _ArrayGraphWidgetGraphState extends State<_ArrayGraphWidgetGraph>
 
   int _arrayLength = 0;
 
+  List<List<MapEntry<String, dynamic>>> lists = [];
+  List<String> names = [];
+
   @override
   void initState() {
     super.initState();
@@ -413,15 +416,23 @@ class _ArrayGraphWidgetGraphState extends State<_ArrayGraphWidgetGraph>
   }
 
   double _getValueFromArray(Object? data) {
-    if (data == null) {
-      return widget.minValue ?? 0.0;
-    }
-
-    if (data is List) {
+    if (data != null && data is List) {
       _arrayLength = data.length;
       if (widget.selectedIndex < data.length) {
         final value = data[widget.selectedIndex];
         return tryCast<num>(value)?.toDouble() ?? widget.minValue ?? 0.0;
+      }
+    }
+
+    if (lists.isNotEmpty) {
+      int currentCount = 0;
+      for (List<MapEntry<String, dynamic>> group in lists) {
+        if (widget.selectedIndex < currentCount + group.length) {
+          int indexInGroup = widget.selectedIndex - currentCount;
+          var value = group[indexInGroup].value;
+          return tryCast<num>(value)?.toDouble() ?? widget.minValue ?? 0.0;
+        }
+        currentCount += group.length;
       }
     }
 
@@ -468,6 +479,24 @@ class _ArrayGraphWidgetGraphState extends State<_ArrayGraphWidgetGraph>
 
         _allHistoricalData.removeWhere((point) => point.x < cutoffTime);
 
+        List<String> nameGroups = widget.subscription!.topic.split("/").last.split(" | ");
+        lists.clear();
+        int c = 0;
+        for (String nameGroup in nameGroups){
+          String groupName = nameGroup.split(":")[0];
+          names.add(groupName);
+          
+          String content = nameGroup.split(": ")[1];
+          List<String> itemNames = content.split(", ");
+          List<MapEntry<String, dynamic>> currentGroupEntries = [];
+          for (String itemName in itemNames) {
+            var value = tryCast<List<dynamic>>(data)![c];
+            currentGroupEntries.add(MapEntry(itemName, value));
+            c++;
+          }
+          lists.add(currentGroupEntries);
+        }
+
         // Update visible data only if in live mode
         if (_isLiveMode) {
           _updateVisibleData();
@@ -504,14 +533,11 @@ class _ArrayGraphWidgetGraphState extends State<_ArrayGraphWidgetGraph>
 
     final double windowStartTime = windowEndTime - timeWindow;
 
-    final List<_GraphPoint> filteredData = _allHistoricalData
-        .where(
-            (point) => point.x >= windowStartTime && point.x <= windowEndTime)
+    final List<_GraphPoint> displayData = _allHistoricalData
+        .where((point) => point.x >= windowStartTime && point.x <= windowEndTime)
         .toList();
 
-    if (filteredData.isEmpty) return;
-
-    final List<_GraphPoint> displayData = List.of(filteredData);
+    if (displayData.isEmpty) return;
 
     if (displayData.first.x > windowStartTime) {
       displayData.insert(
@@ -593,14 +619,32 @@ class _ArrayGraphWidgetGraphState extends State<_ArrayGraphWidgetGraph>
                   isDense: true,
                   hint: const Text('Choose Index'),
                   items: _arrayLength > 0
-                      ? List.generate(
-                          _arrayLength,
-                          (index) => DropdownMenuItem<int>(
+                    ? List.generate(
+                        _arrayLength,
+                        (index) {
+                          String label = "Index $index";
+                          int count = 0;
+                          
+                          for (int i = 0; i < lists.length; i++) {
+                            if (index < count + lists[i].length) {
+                              int subIndex = index - count;
+                              
+                              String groupName = i < names.length ? names[i] : "";
+                              String itemKey = lists[i][subIndex].key;
+                              
+                              label = groupName + itemKey; 
+                              break;
+                            }
+                            count += lists[i].length;
+                          }
+
+                          return DropdownMenuItem<int>(
                             value: index,
-                            child: Text('Index $index'),
-                          ),
-                        )
-                      : null,
+                            child: Text('$label:'),
+                          );
+                        },
+                      )
+                    : null,
                   onChanged: (value) {
                     if (value != null) {
                       widget.onIndexChanged(value);
