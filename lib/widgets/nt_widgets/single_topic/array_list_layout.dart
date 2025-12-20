@@ -6,7 +6,6 @@ import 'package:dot_cast/dot_cast.dart';
 import 'package:provider/provider.dart';
 
 import 'package:elastic_dashboard/services/nt4_client.dart';
-import 'package:elastic_dashboard/widgets/dialog_widgets/dialog_color_picker.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/nt_widget.dart';
 
 class ArrayListModel extends SingleTopicNTWidgetModel {
@@ -15,6 +14,7 @@ class ArrayListModel extends SingleTopicNTWidgetModel {
 
   late Color _mainColor;
   int _selectedIndex = 0;
+  List<String> keyOrder = []; // Store the user's preferred order
 
   Color get mainColor => _mainColor;
 
@@ -34,7 +34,8 @@ class ArrayListModel extends SingleTopicNTWidgetModel {
     required super.ntConnection,
     required super.preferences,
     required super.topic,
-    Color mainColor = Colors.cyan,
+    // Default to a dark grey/black similar to the Talon background
+    Color mainColor = const Color(0xFF353535),
     int selectedIndex = 0,
     super.dataType,
     super.period,
@@ -47,8 +48,9 @@ class ArrayListModel extends SingleTopicNTWidgetModel {
     required super.preferences,
     required Map<String, dynamic> jsonData,
   }) : super.fromJson(jsonData: jsonData) {
-    _mainColor = Color(tryCast(jsonData['color']) ?? Colors.cyan.toARGB32());
+    _mainColor = Color(tryCast(jsonData['color']) ?? 0xFF353535);
     _selectedIndex = tryCast(jsonData['selected_index']) ?? 0;
+    keyOrder = List<String>.from(tryCast(jsonData['key_order']) ?? []);
   }
 
   @override
@@ -57,29 +59,103 @@ class ArrayListModel extends SingleTopicNTWidgetModel {
       ...super.toJson(),
       'color': _mainColor.toARGB32(),
       'selected_index': _selectedIndex,
+      'key_order': keyOrder,
     };
+  }
+
+  // Helper to ensure all keys found in data are in our order list
+  void updateKeys(List<String> newKeys) {
+    bool changed = false;
+    for (String key in newKeys) {
+      if (!keyOrder.contains(key)) {
+        keyOrder.add(key);
+        changed = true;
+      }
+    }
+    if (changed) {
+      // Implicitly save state
+    }
   }
 
   @override
   List<Widget> getEditProperties(BuildContext context) {
     return [
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        mainAxisSize: MainAxisSize.max,
-        children: [
-          Flexible(
-            child: DialogColorPicker(
-              onColorPicked: (color) {
-                mainColor = color;
-              },
-              label: 'Main Color',
-              initialColor: _mainColor,
-              defaultColor: Colors.cyan,
-            ),
-          ),
-        ],
+      Center(
+        child: ElevatedButton(
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (context) => _ReorderKeysDialog(model: this),
+            );
+          },
+          child: const Text("Order Fields"),
+        ),
       ),
     ];
+  }
+}
+
+// --- Dialog for Reordering Keys ---
+class _ReorderKeysDialog extends StatefulWidget {
+  final ArrayListModel model;
+
+  const _ReorderKeysDialog({required this.model});
+
+  @override
+  State<_ReorderKeysDialog> createState() => _ReorderKeysDialogState();
+}
+
+class _ReorderKeysDialogState extends State<_ReorderKeysDialog> {
+  late List<String> _currentOrder;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentOrder = List.from(widget.model.keyOrder);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text("Order Fields"),
+      content: SizedBox(
+        width: 300,
+        height: 400,
+        child: ReorderableListView(
+          onReorder: (oldIndex, newIndex) {
+            setState(() {
+              if (oldIndex < newIndex) {
+                newIndex -= 1;
+              }
+              final String item = _currentOrder.removeAt(oldIndex);
+              _currentOrder.insert(newIndex, item);
+            });
+          },
+          children: [
+            for (int i = 0; i < _currentOrder.length; i++)
+              ListTile(
+                key: ValueKey(_currentOrder[i]),
+                title: Text(_currentOrder[i]),
+                leading: const Icon(Icons.drag_handle),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text("Cancel"),
+        ),
+        TextButton(
+          onPressed: () {
+            widget.model.keyOrder = _currentOrder;
+            widget.model.refresh(); // Update the widget
+            Navigator.of(context).pop();
+          },
+          child: const Text("Save"),
+        ),
+      ],
+    );
   }
 }
 
@@ -96,6 +172,7 @@ class ArrayListWidget extends NTWidget {
       subscription: model.subscription,
       mainColor: model.mainColor,
       selectedIndex: model.selectedIndex,
+      model: model, // Pass model to access keyOrder
       onIndexChanged: (index) {
         model.selectedIndex = index;
       },
@@ -107,12 +184,14 @@ class _ArrayListWidgetGraph extends StatefulWidget {
   final NT4Subscription? subscription;
   final Color mainColor;
   final int selectedIndex;
+  final ArrayListModel model;
   final Function(int) onIndexChanged;
 
   const _ArrayListWidgetGraph({
     required this.subscription,
     required this.mainColor,
     required this.selectedIndex,
+    required this.model,
     required this.onIndexChanged,
   });
 
@@ -152,12 +231,16 @@ class _ArrayListWidgetGraphState extends State<_ArrayListWidgetGraph> {
     _subscriptionListener =
         widget.subscription?.periodicStream(yieldAll: true).listen((data) {
       if (data != null) {
-        // Keeping your logic exactly as requested
         List<String> nameGroups =
             widget.subscription!.topic.split("/").last.split(" | ");
         lists.clear();
-        names.clear(); // Clear names list too
+        names.clear();
+
         int c = 0;
+
+        // Collect all found keys to update the model
+        List<String> foundKeys = [];
+
         for (String nameGroup in nameGroups) {
           String groupName = nameGroup.split(":")[0];
           names.add(groupName);
@@ -165,15 +248,35 @@ class _ArrayListWidgetGraphState extends State<_ArrayListWidgetGraph> {
           String content = nameGroup.split(": ")[1];
           List<String> itemNames = content.split(", ");
           List<MapEntry<String, dynamic>> currentGroupEntries = [];
+
           for (String itemName in itemNames) {
-            var value = tryCast<List<dynamic>>(data)![c];
-            currentGroupEntries.add(MapEntry(itemName, value));
+            if (tryCast<List<dynamic>>(data)!.length > c) {
+              var value = tryCast<List<dynamic>>(data)![c];
+              currentGroupEntries.add(MapEntry(itemName, value));
+              foundKeys.add(itemName);
+            }
             c++;
           }
+
+          // Sort the entries based on the model's keyOrder
+          currentGroupEntries.sort((a, b) {
+            int indexA = widget.model.keyOrder.indexOf(a.key);
+            int indexB = widget.model.keyOrder.indexOf(b.key);
+
+            // If key not found in order list, put it at the end
+            if (indexA == -1) indexA = 999;
+            if (indexB == -1) indexB = 999;
+
+            return indexA.compareTo(indexB);
+          });
+
           lists.add(currentGroupEntries);
         }
 
-        setState(() {});
+        // Update model with any new keys found so they appear in reorder list
+        widget.model.updateKeys(foundKeys);
+
+        if (mounted) setState(() {});
       }
     });
   }
@@ -182,7 +285,7 @@ class _ArrayListWidgetGraphState extends State<_ArrayListWidgetGraph> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // --- Header: Index Selector ---
+        // --- Header: Index Selector (Reverted to classic line style) ---
         Container(
           height: 40,
           padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
@@ -218,7 +321,7 @@ class _ArrayListWidgetGraphState extends State<_ArrayListWidgetGraph> {
           ),
         ),
 
-        // --- DATA DISPLAY (Scrollable List / Form Style) ---
+        // --- DATA DISPLAY ---
         Expanded(
           child: lists.isNotEmpty && widget.selectedIndex < lists.length
               ? ListView.builder(
@@ -229,41 +332,42 @@ class _ArrayListWidgetGraphState extends State<_ArrayListWidgetGraph> {
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // 1. The Label
-                          Text(
-                            pair.key,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade400,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-
-                          // 2. The Value Box (Fixed size, dark background, NO underline)
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10.0, vertical: 8.0),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF252525), // Dark background
-                              // Removed border: Border(...) here!
-                              borderRadius: BorderRadius.all(Radius.circular(4)), // Rounded all corners
-                            ),
-                            child: Text(
-                              tryCast<num>(pair.value)?.toStringAsFixed(2) ??
-                                  pair.value.toString(),
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                      // Wrap entire item in a Container box
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12.0, vertical: 10.0),
+                        decoration: BoxDecoration(
+                          // Lighter background color for contrast against main background
+                          color: const Color(0xFF353535),
+                          borderRadius: BorderRadius.circular(6),
+                          // Subtle border to define edges
+                          border: Border.all(color: Colors.white12, width: 0.5),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // 1. Label
+                            Text(
+                              pair.key,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[500], // Muted grey label
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 2),
+                            // 2. Value
+                            Text(
+                              tryCast<num>(pair.value)?.toStringAsFixed(2) ??
+                                  pair.value.toString(),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey[300], // Grayer text
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },

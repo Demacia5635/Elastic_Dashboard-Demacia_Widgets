@@ -619,32 +619,33 @@ class _ArrayGraphWidgetGraphState extends State<_ArrayGraphWidgetGraph>
                   isDense: true,
                   hint: const Text('Choose Index'),
                   items: _arrayLength > 0
-                    ? List.generate(
-                        _arrayLength,
-                        (index) {
-                          String label = "Index $index";
-                          int count = 0;
-                          
-                          for (int i = 0; i < lists.length; i++) {
-                            if (index < count + lists[i].length) {
-                              int subIndex = index - count;
-                              
-                              String groupName = i < names.length ? names[i] : "";
-                              String itemKey = lists[i][subIndex].key;
-                              
-                              label = groupName + itemKey; 
-                              break;
-                            }
-                            count += lists[i].length;
-                          }
+                      ? List.generate(
+                          _arrayLength,
+                          (index) {
+                            String label = "Index $index"; 
+                            int count = 0;
 
-                          return DropdownMenuItem<int>(
-                            value: index,
-                            child: Text('$label:'),
-                          );
-                        },
-                      )
-                    : null,
+                            for (int i = 0; i < lists.length; i++) {
+                              if (index < count + lists[i].length) {
+                                int subIndex = index - count;
+
+                                String groupName = i < names.length ? "${names[i]}: " : "";
+                                
+                                String itemKey = lists[i][subIndex].key;
+
+                                label = groupName + itemKey;
+                                break;
+                              }
+                              count += lists[i].length;
+                            }
+
+                            return DropdownMenuItem<int>(
+                              value: index,
+                              child: Text(label), 
+                            );
+                          },
+                        )
+                      : null,
                   onChanged: (value) {
                     if (value != null) {
                       widget.onIndexChanged(value);
