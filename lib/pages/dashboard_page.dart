@@ -123,12 +123,15 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
   bool _seenShuffleboardWarning = false;
   bool isRecording = false;
   List<Map<String, dynamic>> recorder = [];
+  Timer? timer;
   final Map<String, NT4Subscription> _recordingSubscriptions = {};
   Map<String, String> widgetTypes = {};
   final Map<String, dynamic> lastSentValues = {};
   final double playbackSpeed = 0.5;
   int recordingStartTime = 0;
+  int test = 0;
   int recordingEndTime = 0;
+  int millisec = 0;
   bool needToRefreshLiveValues = false;
 
   final List<TabData> _tabData = [];
@@ -372,6 +375,9 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
   }
 
   void _stopRecording() {
+    print("Total Microseconds: ${recordingEndTime - recordingStartTime}");
+    print(
+        "Total Seconds: ${(recordingEndTime - recordingStartTime) / 1000000}");
     for (var sub in _recordingSubscriptions.values) {
       widget.ntConnection.unSubscribe(sub);
     }
@@ -399,7 +405,6 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
 
       for (var topic in allTopics.values) {
         final lastValue = widget.ntConnection.getLastAnnouncedValue(topic.name);
-
         initialWidgets[topic.name] = {
           'type': topic.type,
           'value': lastValue,
@@ -431,8 +436,13 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
         ..sort(
             (a, b) => (a['timestamp'] as int).compareTo(b['timestamp'] as int));
 
+      // CRITICAL FIX: Extract actual start/end from the data frames
       final start = frames.first['timestamp'] as int;
       final end = frames.last['timestamp'] as int;
+
+      // Update class variables so playback immediately recognizes the duration
+      recordingStartTime = start;
+      recordingEndTime = end;
 
       final jsonString = JsonEncoder.withIndent('  ').convert({
         'initialWidgets': initialWidgets,
@@ -476,6 +486,8 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
     if (isRecording) {
       print('Started recording');
       recorder.clear();
+      // Reset so the first packet sets the baseline
+      recordingStartTime = 0;
       _startRecording();
     } else {
       print('Stopped recording');
@@ -494,6 +506,11 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
     NT4Subscription sub = widget.ntConnection.subscribe(topic.name, 0.05);
     sub.listen((value, timestamp) {
       if (isRecording) {
+        if (recordingStartTime == 0) {
+          recordingStartTime = timestamp;
+        }
+        print('Recording timestamp in New Topic: $timestamp');
+        print('Recording startTime in New Topic: $recordingStartTime');
         recorder.add({
           'timestamp': timestamp,
           'server_time': widget.ntConnection.serverTime,
@@ -508,6 +525,11 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
   }
 
   void _startRecording() {
+    timer = Timer.periodic(const Duration(milliseconds: 1), (timer) {
+      millisec++;
+      // print('Recording...'); // Optional: keep if you want to see the count
+    });
+
     Map<int, NT4Topic> topics = widget.ntConnection.announcedTopics();
 
     for (var topic in topics.values) {
@@ -515,6 +537,12 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
 
       sub.listen((value, timestamp) {
         if (isRecording) {
+          // Fix: Sync the class variable to the robot's microsecond clock on the first packet
+          if (recordingStartTime == 0) {
+            recordingStartTime = timestamp;
+            print('Recording startTime synced to: $recordingStartTime');
+          }
+
           recorder.add({
             'timestamp': timestamp,
             'server_time': widget.ntConnection.serverTime,
@@ -547,6 +575,11 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
           .toList()
         ..sort(
             (a, b) => (a['timestamp'] as int).compareTo(b['timestamp'] as int));
+
+      if (playbackData.isNotEmpty) {
+        recordingStartTime = playbackData.first['timestamp'] as int;
+        recordingEndTime = playbackData.last['timestamp'] as int;
+      }
 
       recordingStartTime = rec['recording_start'] as int? ??
           (playbackData.isNotEmpty
@@ -689,13 +722,18 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
     setState(() {});
   }
 
-  String _formatTimestamp(int microseconds) {
-    int elapsedUs = (microseconds - recordingStartTime).abs();
+  String _formatTimestamp(int microSeconds) {
+    int elapsedUs = (microSeconds - recordingStartTime);
     print('recording start time: $recordingStartTime');
+    print('test time: $test');
     print('end time: $recordingEndTime');
     print('Elapsed us: $elapsedUs');
-    int totalSeconds = elapsedUs ~/ 18000000;
 
+    if (elapsedUs < 0) {
+      return "00:00";
+    }
+
+    int totalSeconds = elapsedUs ~/ 1000000;
     int minutes = totalSeconds ~/ 60;
     int seconds = totalSeconds % 60;
 
