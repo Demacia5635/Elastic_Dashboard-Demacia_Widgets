@@ -1,3 +1,4 @@
+import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/limelightmodel.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/array_graphs.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/array_list_layout.dart';
 import 'package:flutter/material.dart';
@@ -124,6 +125,16 @@ class NTWidgetBuilder {
       defaultHeight: 2,
     );
 
+    register(
+      name: LimelightWidget.widgetType,
+      model: LimelightModel.new,
+      widget: LimelightWidget.new,
+      fromJson: LimelightModel.fromJson,
+      minWidth: _normalSize,
+      minHeight: _normalSize,
+      defaultWidth: 4,
+      defaultHeight: 3,
+    );
 
     register(
         name: MatchTimeWidget.widgetType,
