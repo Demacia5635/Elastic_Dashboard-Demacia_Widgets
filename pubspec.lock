@@ -633,6 +633,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.0"
+  mjpeg_stream:
+    dependency: "direct main"
+    description:
+      name: mjpeg_stream
+      sha256: "426ff163c08021792f4c8c3bbaae16106d821c7559e8b8b99b8c6c14fb2c6058"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.1"
   mockito:
     dependency: "direct dev"
     description:

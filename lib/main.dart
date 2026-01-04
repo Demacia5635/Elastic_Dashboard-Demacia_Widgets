@@ -165,7 +165,7 @@ Future<void> _backupPreferences(String appFolderPath) async {
 }
 
 /// Removes current version of shared_preferences file and restores previous
-/// user settings from a backup file (if it exists).
+/// user settings from a backup file (if it exists).  
 Future<void> _restorePreferencesFromBackup(String appFolderPath) async {
   try {
     final String original = '$appFolderPath\\shared_preferences.json';

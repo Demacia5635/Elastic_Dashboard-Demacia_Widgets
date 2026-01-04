@@ -3,11 +3,14 @@ description: A simple and modern dashboard for FRC.
 publish_to: 'none'
 version: 2025.4.3
 
-
 environment:
   sdk: '>=3.6.0 <4.0.0'
 
 dependencies:
+  flutter:
+    sdk: flutter
+  
+  mjpeg_stream: ^1.0.1
   animations: ^2.0.11
   collection: ^1.19.1
   decimal: ^3.2.1
@@ -16,11 +19,9 @@ dependencies:
   elegant_notification: ^2.5.1
   file_selector: ^1.0.3
   flex_seed_scheme: ^3.5.1
-  flutter:
-    sdk: flutter
   flutter_box_transform: ^0.4.7
   flutter_colorpicker: ^1.1.0
-  flutter_context_menu: ^0.1.3 
+  flutter_context_menu: ^0.1.3
   flutter_fancy_tree_view: ^1.6.0
   flutter_launcher_icons: ^0.14.3
   geekyants_flutter_gauges:
@@ -66,7 +67,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
   assets:
     - assets/logos/
     - assets/fields/
@@ -78,7 +78,7 @@ flutter:
 import_sorter:
   comments: false
   ignored_files:
-    - /*.mocks.dart
+    - "*.mocks.dart"
 
 flutter_launcher_icons:
   image_path: "assets/logos/logo.png"
