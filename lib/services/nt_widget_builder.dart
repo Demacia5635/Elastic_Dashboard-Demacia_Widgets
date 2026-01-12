@@ -1,4 +1,5 @@
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/LookUpTable.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/active_widget.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/chassis_speed.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/multigraph.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/vector.dart';
@@ -113,6 +114,8 @@ class NTWidgetBuilder {
       defaultHeight: 2,
       defaultWidth: 2,
     );
+
+    register(name: ActiveWidget.widgetType, model: ActiveWidgetModel.new, widget: ActiveWidget.new, fromJson: ActiveWidgetModel.fromJson);
 
     register(
       name: ChassisSpeed.widgetType,
