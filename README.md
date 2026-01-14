@@ -1,14 +1,12 @@
 # ![Elastic Logo](assets/logos/logo_full.png)
 
-[![Elastic](https://github.com/Gold872/elastic-dashboard/actions/workflows/elastic-ci.yml/badge.svg)](https://github.com/Gold872/elastic-dashboard/actions/workflows/elastic-ci.yml) [![codecov](https://codecov.io/gh/Gold872/elastic-dashboard/graph/badge.svg?token=4MQYW8SMQI)](https://codecov.io/gh/Gold872/elastic-dashboard)
+[![Elastic](https://github.com/Gold872/elastic_dashboard/actions/workflows/elastic-ci.yml/badge.svg)](https://github.com/Gold872/elastic_dashboard/actions/workflows/elastic-ci.yml) [![codecov](https://codecov.io/gh/Gold872/elastic_dashboard/graph/badge.svg?token=4MQYW8SMQI)](https://codecov.io/gh/Gold872/elastic_dashboard)
 
 A simple and modern dashboard for FRC.
 
-Download files can be found [here](https://github.com/Gold872/elastic-dashboard/releases/latest), the supported platforms are Windows, MacOS, and Linux.
+Download files can be found [here](https://github.com/Gold872/elastic_dashboard/releases/latest), the supported platforms are Windows, MacOS, Linux, and Web.
 
-_Important Notes/Warnings:_ 
-* _Your robot code must be using WPILib version 2023.3.1 or higher, otherwise you might not be able to add widgets._
-    * _WPILib v2023.3.1 fixed a bug in Network Tables where values wouldn't be sent to a client after subscribing topics only. Since the program subscribes topics only to everything, any widget that is built using a sendable will not be possible to add since the program will not be able to retrieve the widget's type. See https://github.com/wpilibsuite/allwpilib/pull/4991 for more info._
+Try it in your browser! https://gold872.github.io/elastic_dashboard/
 
 ## About
 
@@ -23,6 +21,9 @@ Elastic is a simple and modern FRC dashboard made by Nadav from FRC Team 353. It
 ## Documentation
 View the online documentation [here](https://frc-elastic.gitbook.io/docs)
 
+## Building and Contributing
+View the instructions for building code and making contributions to the project in the [CONTRIBUTING.md](CONTRIBUTING.md) file
+
 ## Special Thanks
 
 This dashboard wouldn't have been made without the help and inspiration from the following people
@@ -32,3 +33,9 @@ This dashboard wouldn't have been made without the help and inspiration from the
 * [Oh yes 10 FPS](https://github.com/oh-yes-0-fps) from Team 3173
 * [Jason](https://github.com/jasondaming) and [Peter](https://github.com/PeterJohnson) from WPILib
 * All mentors and advisors of Team 353, the POBots
+
+## Contributors
+
+<a href="https://github.com/Gold872/elastic_dashboard/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Gold872/elastic_dashboard" />
+</a>

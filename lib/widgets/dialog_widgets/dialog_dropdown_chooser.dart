@@ -46,13 +46,17 @@ class _DialogDropdownChooserState<T> extends State<DialogDropdownChooser<T>> {
             child: DropdownButton<T>(
               isExpanded: true,
               borderRadius: BorderRadius.circular(8.0),
-              style: const TextStyle(fontWeight: FontWeight.normal),
-              items: widget.choices?.map((T item) {
-                return DropdownMenuItem<T>(
-                  value: item,
-                  child: Text(widget.nameMap?.call(item) ?? item.toString()),
-                );
-              }).toList(),
+              style: Theme.of(context).textTheme.bodyMedium,
+              items: widget.choices
+                  ?.map(
+                    (T item) => DropdownMenuItem<T>(
+                      value: item,
+                      child: Text(
+                        widget.nameMap?.call(item) ?? item.toString(),
+                      ),
+                    ),
+                  )
+                  .toList(),
               value: selectedValue,
               onChanged: (value) {
                 setState(() {

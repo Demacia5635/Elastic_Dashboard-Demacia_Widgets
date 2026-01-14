@@ -1,7 +1,7 @@
-// Copyright (c) 2023-2025 Gold87 and other Elastic contributors
+// Copyright (c) 2023-2026 Gold87 and other Elastic contributors
 // This software can be modified and/or shared under the terms
 // defined by the Elastic license:
-// https://github.com/Gold872/elastic-dashboard/blob/main/LICENSE
+// https://github.com/Gold872/elastic_dashboard/blob/main/LICENSE
 
 package frc.robot.util;
 
@@ -23,6 +23,19 @@ public final class Elastic {
   private static final StringPublisher selectedTabPublisher =
       selectedTabTopic.publish(PubSubOption.keepDuplicates(true));
   private static final ObjectMapper objectMapper = new ObjectMapper();
+
+  /**
+   * Represents the possible levels of notifications for the Elastic dashboard. These levels are
+   * used to indicate the severity or type of notification.
+   */
+  public enum NotificationLevel {
+    /** Informational Message */
+    INFO,
+    /** Warning message */
+    WARNING,
+    /** Error message */
+    ERROR
+  }
 
   /**
    * Sends an notification to the Elastic dashboard. The notification is serialized as a JSON string
@@ -372,19 +385,6 @@ public final class Elastic {
     public Notification withNoAutoDismiss() {
       setDisplayTimeMillis(0);
       return this;
-    }
-
-    /**
-     * Represents the possible levels of notifications for the Elastic dashboard. These levels are
-     * used to indicate the severity or type of notification.
-     */
-    public enum NotificationLevel {
-      /** Informational Message */
-      INFO,
-      /** Warning message */
-      WARNING,
-      /** Error message */
-      ERROR
     }
   }
 }
