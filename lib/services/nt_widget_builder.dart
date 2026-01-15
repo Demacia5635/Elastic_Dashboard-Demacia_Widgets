@@ -343,15 +343,17 @@ class NTWidgetBuilder {
         minHeight: _normalSize * 3,
         defaultWidth: 2,
         defaultHeight: 3);
+    
     register(
-        name: ArrayGraphModel.widgetType, // 'Array Graph'
-        model: ArrayGraphModel.new,
-        widget: ArrayGraphWidget.new,
-        fromJson: ArrayGraphModel.fromJson,
-        minWidth: _normalSize * 2,
-        minHeight: _normalSize * 2,
-        defaultWidth: 2,
-        defaultHeight: 2,);
+      name: ArrayIndexGraphModel.widgetType,
+      model: ArrayIndexGraphModel.new,
+      widget: ArrayIndexGraphWidget.new,
+      fromJson: ArrayIndexGraphModel.fromJson,
+      minWidth: 3,
+      minHeight: 2,
+      defaultWidth: 5,
+      defaultHeight: 3,
+    );
 
     register(
         name: RelayWidget.widgetType,
