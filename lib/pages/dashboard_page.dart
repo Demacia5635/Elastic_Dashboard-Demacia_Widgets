@@ -123,10 +123,16 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
   bool _seenShuffleboardWarning = false;
   bool isRecording = false;
   List<Map<String, dynamic>> recorder = [];
+  Timer? timer;
   final Map<String, NT4Subscription> _recordingSubscriptions = {};
   Map<String, String> widgetTypes = {};
   final Map<String, dynamic> lastSentValues = {};
   final double playbackSpeed = 0.5;
+  int recordingStartTime = 0;
+  int test = 0;
+  int recordingEndTime = 0;
+  int millisec = 0;
+  bool needToRefreshLiveValues = false;
 
   final List<TabData> _tabData = [];
 
@@ -369,6 +375,9 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
   }
 
   void _stopRecording() {
+    print("Total Microseconds: ${recordingEndTime - recordingStartTime}");
+    print(
+        "Total Seconds: ${(recordingEndTime - recordingStartTime) / 1000000}");
     for (var sub in _recordingSubscriptions.values) {
       widget.ntConnection.unSubscribe(sub);
     }
@@ -396,7 +405,6 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
 
       for (var topic in allTopics.values) {
         final lastValue = widget.ntConnection.getLastAnnouncedValue(topic.name);
-
         initialWidgets[topic.name] = {
           'type': topic.type,
           'value': lastValue,
@@ -428,11 +436,16 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
         ..sort(
             (a, b) => (a['timestamp'] as int).compareTo(b['timestamp'] as int));
 
+      // CRITICAL FIX: Extract actual start/end from the data frames
       final start = frames.first['timestamp'] as int;
       final end = frames.last['timestamp'] as int;
 
+      // Update class variables so playback immediately recognizes the duration
+      recordingStartTime = start;
+      recordingEndTime = end;
+
       final jsonString = JsonEncoder.withIndent('  ').convert({
-        'initialWidgets': initialWidgets, // 🟩 NEW
+        'initialWidgets': initialWidgets,
         'recording_start': start,
         'recording_end': end,
         'sample_count': recorder.length,
@@ -473,6 +486,8 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
     if (isRecording) {
       print('Started recording');
       recorder.clear();
+      // Reset so the first packet sets the baseline
+      recordingStartTime = 0;
       _startRecording();
     } else {
       print('Stopped recording');
@@ -491,6 +506,11 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
     NT4Subscription sub = widget.ntConnection.subscribe(topic.name, 0.05);
     sub.listen((value, timestamp) {
       if (isRecording) {
+        if (recordingStartTime == 0) {
+          recordingStartTime = timestamp;
+        }
+        print('Recording timestamp in New Topic: $timestamp');
+        print('Recording startTime in New Topic: $recordingStartTime');
         recorder.add({
           'timestamp': timestamp,
           'server_time': widget.ntConnection.serverTime,
@@ -505,18 +525,24 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
   }
 
   void _startRecording() {
-    // Get all current topics
+    timer = Timer.periodic(const Duration(milliseconds: 1), (timer) {
+      millisec++;
+      // print('Recording...'); // Optional: keep if you want to see the count
+    });
+
     Map<int, NT4Topic> topics = widget.ntConnection.announcedTopics();
 
-    // Subscribe to each topic and listen for changes
     for (var topic in topics.values) {
-      // Create a subscription for this topic
-      NT4Subscription sub =
-          widget.ntConnection.subscribe(topic.name, 0.05); // 50ms updates
+      NT4Subscription sub = widget.ntConnection.subscribe(topic.name, 0.05);
 
-      // Listen to value changes
       sub.listen((value, timestamp) {
         if (isRecording) {
+          // Fix: Sync the class variable to the robot's microsecond clock on the first packet
+          if (recordingStartTime == 0) {
+            recordingStartTime = timestamp;
+            print('Recording startTime synced to: $recordingStartTime');
+          }
+
           recorder.add({
             'timestamp': timestamp,
             'server_time': widget.ntConnection.serverTime,
@@ -530,7 +556,6 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
       _recordingSubscriptions[topic.name] = sub;
     }
 
-    // Also listen for new topics that get announced during recording
     widget.ntConnection.addTopicAnnounceListener(_onNewTopicDuringRecording);
   }
 
@@ -551,39 +576,47 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
         ..sort(
             (a, b) => (a['timestamp'] as int).compareTo(b['timestamp'] as int));
 
-      // First, prescan to get widget types from .type topics
+      if (playbackData.isNotEmpty) {
+        recordingStartTime = playbackData.first['timestamp'] as int;
+        recordingEndTime = playbackData.last['timestamp'] as int;
+      }
+
+      recordingStartTime = rec['recording_start'] as int? ??
+          (playbackData.isNotEmpty
+              ? playbackData.first['timestamp'] as int
+              : 0);
+      recordingEndTime = rec['recording_end'] as int? ??
+          (playbackData.isNotEmpty ? playbackData.last['timestamp'] as int : 0);
+
       preScanRecording(playbackData);
 
-      // 🟩 CRITICAL: Only create widgets for topics with REGISTERED widget types
       final initialWidgets = rec['initialWidgets'] as Map<String, dynamic>?;
 
       if (initialWidgets != null) {
-        // Get all topics that have a .type topic with a registered widget type
         final Set<String> topicsToCreate = {};
 
+        // 🟢 ONLY collect topics that have a .type entry
         initialWidgets.forEach((topicName, payload) {
           if (topicName.endsWith('/.type')) {
             // Extract base topic name
             final baseTopic = topicName.substring(0, topicName.length - 6);
-            final widgetType = widgetTypes[baseTopic];
+            final widgetTypeValue = payload['value'] as String?;
 
-            // 🟩 Only add if it's a registered widget type
-            if (widgetType != null &&
-                NTWidgetBuilder.isRegistered(widgetType)) {
+            if (widgetTypeValue != null) {
               topicsToCreate.add(baseTopic);
               print(
-                  '✅ Will create widget for: $baseTopic with type: $widgetType');
+                  '✅ Will create widget for: $baseTopic with type: $widgetTypeValue');
             }
           }
         });
 
-        // Now create widgets only for the registered topics
+        // Now create widgets only for the parent topics (those with .type)
         for (final topicName in topicsToCreate) {
           final widgetType = widgetTypes[topicName];
           if (widgetType == null) continue;
 
+          // Get the initial value from the parent topic (not subtopics)
           final topicData = initialWidgets[topicName];
-          final ntType = topicData?['type'] as String?;
           final value = topicData?['value'];
 
           print('🟢 Creating widget: $topicName, Widget type: $widgetType');
@@ -605,7 +638,7 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
         width: 300,
       );
 
-      setState(() {}); // Refresh UI to show the widgets
+      setState(() {});
     } catch (e) {
       print('Error loading playback: $e');
       _showErrorNotification(
@@ -637,10 +670,8 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
       while (isPlaying && playbackIndex < playbackData.length) {
         final frame = playbackData[playbackIndex];
 
-        // inject values
         updateWidgetsFromPlayback(frame);
 
-        // calculate delay
         if (playbackIndex + 1 < playbackData.length) {
           final now = frame['timestamp'] as int; // µs
           final next = playbackData[playbackIndex + 1]['timestamp'] as int;
@@ -648,16 +679,15 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
           int deltaUs = next - now;
           if (deltaUs < 0) deltaUs = 0;
 
-          // safety clamp (max 2 seconds)
           if (deltaUs > 2 * 1000 * 1000) deltaUs = 2 * 1000 * 1000;
 
           await Future.delayed(Duration(microseconds: deltaUs));
         }
 
         playbackIndex++;
+        setState(() {}); // Update slider position
       }
 
-      // Playback finished
       if (playbackIndex >= playbackData.length) {
         print("Playback completed");
         _showInfoNotification(
@@ -668,26 +698,48 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
       }
     } finally {
       setState(() => isPlaying = false);
-      widget.ntConnection.exitPlaybackMode();
 
-      // 🟢 NEW: Refresh values after playback completes
-      _refreshLiveValues();
+      if (playbackIndex >= playbackData.length) {
+        widget.ntConnection.exitPlaybackMode();
+        _refreshLiveValues();
+      }
     }
   }
 
   void pausePlayback() {
     setState(() => isPlaying = false);
-    // Stay in playback mode - don't exit yet
   }
 
-  void stopPlayback() {
-    setState(() {
-      isPlaying = false;
-      playbackIndex = 0;
-    });
+  void seekPlayback(int newIndex) {
+    if (playbackData.isEmpty) return;
 
-    _refreshLiveValues();
-    widget.ntConnection.exitPlaybackMode();
+    playbackIndex = newIndex.clamp(0, playbackData.length - 1);
+
+    if (playbackIndex < playbackData.length) {
+      updateWidgetsFromPlayback(playbackData[playbackIndex]);
+    }
+
+    setState(() {});
+  }
+
+  String _formatTimestamp(int microSeconds) {
+    int elapsedUs = (microSeconds - recordingStartTime);
+    print('recording start time: $recordingStartTime');
+    print('test time: $test');
+    print('end time: $recordingEndTime');
+    print('Elapsed us: $elapsedUs');
+
+    if (elapsedUs < 0) {
+      return "00:00";
+    }
+
+    int totalSeconds = elapsedUs ~/ 1000000;
+    int minutes = totalSeconds ~/ 60;
+    int seconds = totalSeconds % 60;
+
+    print(
+        'Time: ${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}');
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
   void _refreshLiveValues() {
@@ -774,56 +826,6 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
       );
     }
   }
-
-  /* void updateWidgetsFromPlayback(Map<String, dynamic> row) {
-  final topics = row['topics'] as Map<String, dynamic>?;
-
-  if (topics == null) return;
-
-  topics.forEach((topicName, payload) {
-    final value = payload['value'];
-    final type = payload['type'] ?? '';
-
-    // --- 1. Check for .type topics (widget type info) ---
-    if (topicName.endsWith('.type')) {
-      final widgetType = value as String;
-
-      // If we don't already have a widget model for this topic, create it
-      if (!widgetsModels.containsKey(topicName)) {
-        final widgetModel = NTWidgetBuilder.createWidgetModel(
-          widgetType,
-          topicName,
-          widget.ntConnection,
-          widget.preferences,
-        );
-
-        final widgetInstance = getWidgetFromModel(widgetModel);
-
-        // Add to your UI
-        setState(() {
-          widgetsList.add(widgetInstance);
-          widgetsModels[topicName] = widgetModel;
-        });
-      }
-
-      // no need to process this as a normal value
-      return;
-    }
-
-    // --- 2. Normal topic values ---
-    final model = widgetsModels[topicName];
-    if (model != null) {
-      // Assuming your NTWidgetModel has a method to push values
-      if (model is SingleTopicNTWidgetModel) {
-        model.ntTopic?.injectValue(value); // or whatever method you have
-      }
-    }
-
-    // --- 3. Optional: send value to NTConnection if needed ---
-    widget.ntConnection.sendPlaybackValue(topicName, value, type);
-  });
-}
-*/
 
   Future<String?> pickFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -2563,37 +2565,83 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
           'Help',
         ),
       ),
-      Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-        IconButton(
-          onPressed: () {
-            setState(() {
-              _record();
-            });
-          },
-          icon:
-              isRecording ? Icon(Icons.stop) : Icon(Icons.emergency_recording),
-        ),
-        IconButton(
-          icon: isPlaying ? Icon(Icons.pause) : Icon(Icons.play_arrow),
-          onPressed: () {
-            if (isPlaying) {
-              pausePlayback();
-            } else if (playbackData.isNotEmpty) {
-              startPlayback();
-            }
-          },
-        ),
-        IconButton(
-          icon: Icon(Icons.folder_open),
-          tooltip: 'Open Recording File',
-          onPressed: () async {
-            String? path = await pickFile();
-            if (path != null) {
-              await loadPlaybackDataFromFile(path);
-            }
-          },
-        ),
-      ]),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (playbackData.isNotEmpty)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Row(
+                  children: [
+                    Text(
+                      _formatTimestamp(playbackIndex < playbackData.length
+                          ? playbackData[playbackIndex]['timestamp'] as int
+                          : recordingEndTime),
+                      style: TextStyle(fontSize: 11),
+                    ),
+                    Expanded(
+                      child: Slider(
+                        value: playbackIndex
+                            .toDouble()
+                            .clamp(0, (playbackData.length - 1).toDouble()),
+                        min: 0,
+                        max: (playbackData.length - 1).toDouble(),
+                        divisions: playbackData.length > 1
+                            ? playbackData.length - 1
+                            : 1,
+                        onChanged: (value) {
+                          if (!isPlaying) {
+                            seekPlayback(value.toInt());
+                          }
+                        },
+                        onChangeStart: (value) {
+                          if (isPlaying) {
+                            pausePlayback();
+                          }
+                        },
+                      ),
+                    ),
+                    Text(
+                      _formatTimestamp(recordingEndTime),
+                      style: TextStyle(fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          IconButton(
+            onPressed: () {
+              setState(() {
+                _record();
+              });
+            },
+            icon: isRecording
+                ? Icon(Icons.stop)
+                : Icon(Icons.emergency_recording),
+          ),
+          IconButton(
+            icon: isPlaying ? Icon(Icons.pause) : Icon(Icons.play_arrow),
+            onPressed: () {
+              if (isPlaying) {
+                pausePlayback();
+              } else if (playbackData.isNotEmpty) {
+                startPlayback();
+              }
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.folder_open),
+            tooltip: 'Open Recording File',
+            onPressed: () async {
+              String? path = await pickFile();
+              if (path != null) {
+                await loadPlaybackDataFromFile(path);
+              }
+            },
+          ),
+        ],
+      ),
     ];
 
     MenuBar menuBar = MenuBar(

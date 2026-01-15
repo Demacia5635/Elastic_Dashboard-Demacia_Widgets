@@ -10,10 +10,14 @@ class LookUpTableModel extends MultiTopicNTWidgetModel {
   String type = LookUpTableWidget.widgetType;
 
   String get tableTopic => '$topic/LUP';
+  String get typeTopic => '$topic/.type';
+
   late NT4Subscription tableSubscription;
+  late NT4Subscription typeSubscription;
 
   @override
-  List<NT4Subscription> get subscriptions => [tableSubscription];
+  List<NT4Subscription> get subscriptions =>
+      [tableSubscription, typeSubscription];
 
   LookUpTableModel({
     required super.ntConnection,
@@ -32,6 +36,21 @@ class LookUpTableModel extends MultiTopicNTWidgetModel {
   @override
   void initializeSubscriptions() {
     tableSubscription = ntConnection.subscribe(tableTopic, super.period);
+    typeSubscription = ntConnection.subscribe(typeTopic, super.period);
+
+    // Publish the widget type so it gets recorded
+    _publishWidgetType();
+  }
+
+  void _publishWidgetType() {
+    ntConnection.updateDataFromTopic(
+      NT4Topic(
+        name: typeTopic,
+        type: NT4TypeStr.kString,
+        properties: {},
+      ),
+      LookUpTableWidget.widgetType,
+    );
   }
 }
 

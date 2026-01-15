@@ -277,27 +277,38 @@ class NTConnection {
 
   void ensureWidgetExists(
       String topicName, String widgetType, dynamic initialValue) {
-    // print(
-    //     '🔵 ensureWidgetExists called: $topicName, type: $widgetType, value: $initialValue');
+    print(
+        '🔵 ensureWidgetExists START: $topicName, type: $widgetType, value: $initialValue');
 
     final typeTopicName = "$topicName/.type";
+
+    // Check if topic already exists
+    final existingTopics = _ntClient.announcedTopics;
+    final alreadyExists = existingTopics.values.any((t) => t.name == topicName);
+    print('   Topic already exists: $alreadyExists');
 
     // 🟩 Create the .type topic
     final typeTopic = NT4Topic(
       name: typeTopicName,
       type: NT4TypeStr.kString,
-      id: _ntClient.getNewPubUID(), // Generate unique ID
+      id: _ntClient.getNewPubUID(),
       pubUID: _ntClient.getNewPubUID(),
       properties: <String, dynamic>{},
     );
 
     publishTopic(typeTopic);
+    print('   Published .type topic with ID: ${typeTopic.id}');
 
     // 🟩 CRITICAL: Manually add to announcedTopics and trigger listeners
     _ntClient.announcedTopics[typeTopic.id] = typeTopic;
+    print(
+        '   Added .type to announcedTopics, total: ${_ntClient.announcedTopics.length}');
+
     for (var listener in _ntClient.topicAnnounceListeners) {
       listener(typeTopic);
     }
+    print(
+        '   Triggered ${_ntClient.topicAnnounceListeners.length} listeners for .type');
 
     // Update the value
     final typeSub = getOrCreateSubscription(typeTopicName);
@@ -307,7 +318,7 @@ class NTConnection {
       isPlayback: true,
     );
 
-    // Store in lastAnnouncedValues so it shows up properly
+    // Store in lastAnnouncedValues
     _ntClient.lastAnnouncedValues[typeTopicName] = widgetType;
     _ntClient.lastAnnouncedTimestamps[typeTopicName] =
         DateTime.now().microsecondsSinceEpoch;
@@ -318,7 +329,7 @@ class NTConnection {
     final mainTopic = NT4Topic(
       name: topicName,
       type: mainTypeString,
-      id: _ntClient.getNewPubUID(), // Generate unique ID
+      id: _ntClient.getNewPubUID(),
       pubUID: _ntClient.getNewPubUID(),
       properties: <String, dynamic>{
         'retained': false,
@@ -327,12 +338,18 @@ class NTConnection {
     );
 
     publishTopic(mainTopic);
+    print('   Published main topic with ID: ${mainTopic.id}');
 
     // 🟩 CRITICAL: Manually add to announcedTopics and trigger listeners
     _ntClient.announcedTopics[mainTopic.id] = mainTopic;
+    print(
+        '   Added main topic to announcedTopics, total: ${_ntClient.announcedTopics.length}');
+
     for (var listener in _ntClient.topicAnnounceListeners) {
       listener(mainTopic);
     }
+    print(
+        '   Triggered ${_ntClient.topicAnnounceListeners.length} listeners for main topic');
 
     // Update the initial value
     final mainSub = getOrCreateSubscription(topicName);
@@ -347,8 +364,7 @@ class NTConnection {
     _ntClient.lastAnnouncedTimestamps[topicName] =
         DateTime.now().microsecondsSinceEpoch;
 
-    // print('🟢 Topic announced: $topicName with ID: ${mainTopic.id}');
-    // print('🟢 Listeners count: ${_ntClient.topicAnnounceListeners.length}');
+    print('🟢 ensureWidgetExists COMPLETE for: $topicName');
   }
 
   void sendPlaybackValue(
