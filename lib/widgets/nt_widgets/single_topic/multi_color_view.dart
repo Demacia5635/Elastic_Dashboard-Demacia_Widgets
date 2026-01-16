@@ -48,7 +48,9 @@ class MultiColorView extends NTWidget {
         return Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(15.0),
-            gradient: LinearGradient(colors: colors),
+            gradient: LinearGradient(
+              colors: colors,
+            ),
           ),
         );
       },

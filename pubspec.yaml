@@ -1,84 +1,76 @@
 name: elastic_dashboard
 description: A simple and modern dashboard for FRC.
 publish_to: 'none'
-version: 2026.1.0
+version: 2025.4.3
+
 
 environment:
-  sdk: '>=3.8.0 <4.0.0'
+  sdk: '>=3.6.0 <4.0.0'
 
 dependencies:
   file_picker: ^6.0.0
-  animations: ^2.1.1
+  animations: ^2.0.11
   collection: ^1.19.1
-  decimal: ^3.2.4
+  decimal: ^3.2.1
   dot_cast: ^1.2.0
   dropdown_button2: ^2.3.9
   elegant_notification: ^2.5.1
-  file_selector: ^1.0.4
-  flex_seed_scheme: ^3.6.1
+  file_selector: ^1.0.3
+  flex_seed_scheme: ^3.5.1
   flutter:
     sdk: flutter
   flutter_box_transform: ^0.4.7
   flutter_colorpicker: ^1.1.0
-  flutter_context_menu: ^0.3.0
+  flutter_context_menu: ^0.1.3 
   flutter_fancy_tree_view: ^1.6.0
-  flutter_launcher_icons: ^0.14.4
+  flutter_launcher_icons: ^0.14.3
   geekyants_flutter_gauges:
     git:
       url: https://github.com/Gold872/GaugesFlutter.git
       ref: elastic-version
   github: ^9.25.0
-  http: ^1.6.0
+  http: ^1.4.0
   import_sorter: ^4.6.0
   intl: ^0.20.2
-  logger: ^2.6.2
+  logger: ^2.5.0
   msgpack_dart:
     git:
       url: https://github.com/TheTripleV/msgpack_dart.git
       ref: fix-64-bit-ints
-  package_info_plus: ^9.0.0
+  package_info_plus: ^8.3.0
   path: ^1.9.1
   path_provider: ^2.1.5
   patterns_canvas: ^0.5.0
-  popover: ^0.4.0
-  provider: ^6.1.5+1
+  popover: ^0.3.1
+  provider: ^6.1.5
   screen_retriever: ^0.2.0
-  searchable_listview: ^2.19.3
+  searchable_listview: ^2.17.3
   shared_preferences: ^2.5.3
-  fl_chart: ^1.1.1
+  syncfusion_flutter_charts: ^30.2.5
   titlebar_buttons: ^1.0.0
   transitioned_indexed_stack: ^1.0.2
-  url_launcher: ^6.3.2
-  uuid: ^4.5.2
-  vector_math: ^2.2.0
+  url_launcher: ^6.3.1
+  uuid: ^4.5.1
+  vector_math: ^2.1.4
   version: ^3.0.2
   visibility_detector: ^0.4.0+2
   web: ^1.1.1
   web_socket_channel: ^3.0.3
-  window_manager: ^0.5.1
+  window_manager: ^0.4.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^6.0.0
-  mockito: ^5.5.1
-  build_runner: ^2.10.4
+  flutter_lints: ^5.0.0
+  mockito: ^5.4.6
+  build_runner: ^2.4.15
 
 flutter:
   uses-material-design: true
-  fonts:
-    - family: Roboto
-      fonts:
-        - asset: assets/fonts/Roboto-Bold.ttf
-          weight: 700
-        - asset: assets/fonts/Roboto-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Roboto-Regular.ttf
 
   assets:
     - assets/logos/
     - assets/fields/
-    - assets/third_party_licenses/
     - assets/reef/
     - assets/reef/reefSelector/
     - assets/reef/levelSelector/
@@ -93,10 +85,11 @@ flutter_launcher_icons:
   image_path: "assets/logos/logo.png"
   windows:
     generate: true
+    image_path: "assets/logos/logo.png"
     icon_size: 256
   macos:
     generate: true
+    image_path: "assets/logos/logo.png"
   linux:
     generate: true
-  web:
-    generate: true
+    image_path: "assets/logos/logo.png"

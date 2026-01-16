@@ -14,9 +14,18 @@ import '../test_util.mocks.dart';
 const Map<String, dynamic> layoutFiles = {
   'dirs': [],
   'files': [
-    {'name': 'elastic-layout 1.json', 'size': 1000},
-    {'name': 'elastic-layout 2.json', 'size': 1000},
-    {'name': 'example.txt', 'size': 1},
+    {
+      'name': 'elastic-layout 1.json',
+      'size': 1000,
+    },
+    {
+      'name': 'elastic-layout 2.json',
+      'size': 1000,
+    },
+    {
+      'name': 'example.txt',
+      'size': 1,
+    },
   ],
 };
 
@@ -46,7 +55,7 @@ const Map<String, dynamic> layoutOne = {
                 'type': 'Subsystem',
                 'properties': {
                   'topic': '/Test Tab/ExampleSubsystem',
-                  'period': 0.06,
+                  'period': 0.06
                 },
               },
               {
@@ -59,10 +68,10 @@ const Map<String, dynamic> layoutOne = {
                 'properties': {
                   'topic': '/Test Tab/Gyro',
                   'period': 0.06,
-                  'counter_clockwise_positive': false,
+                  'counter_clockwise_positive': false
                 },
               },
-            ],
+            ]
           },
           {
             'title': 'Empty Layout',
@@ -86,7 +95,7 @@ const Map<String, dynamic> layoutOne = {
             'properties': {
               'topic': '/Test Tab/Gyro',
               'period': 0.06,
-              'counter_clockwise_positive': false,
+              'counter_clockwise_positive': false
             },
           },
         ],
@@ -113,28 +122,25 @@ void main() {
   test('Get list of available layouts', () async {
     Client mockClient = createHttpClient(
       mockGetResponses: {
-        'http://127.0.0.1:5800/?format=json': Response(
-          jsonEncode(layoutFiles),
-          200,
-        ),
+        'http://127.0.0.1:5800/?format=json':
+            Response(jsonEncode(layoutFiles), 200),
       },
     );
 
-    ElasticLayoutDownloader layoutDownloader = ElasticLayoutDownloader(
-      mockClient,
-    );
+    ElasticLayoutDownloader layoutDownloader =
+        ElasticLayoutDownloader(mockClient);
 
-    LayoutDownloadResponse downloadResponse = await layoutDownloader
-        .getAvailableLayouts(
-          ntConnection: ntConnection,
-          preferences: preferences,
-        );
+    LayoutDownloadResponse downloadResponse =
+        await layoutDownloader.getAvailableLayouts(
+            ntConnection: ntConnection, preferences: preferences);
 
     expect(downloadResponse.successful, isTrue);
     expect(
-      downloadResponse.data,
-      unorderedEquals(['elastic-layout 1', 'elastic-layout 2']),
-    );
+        downloadResponse.data,
+        unorderedEquals([
+          'elastic-layout 1',
+          'elastic-layout 2',
+        ]));
   });
 
   test('Download layout', () async {
@@ -145,16 +151,15 @@ void main() {
       },
     );
 
-    ElasticLayoutDownloader layoutDownloader = ElasticLayoutDownloader(
-      mockClient,
-    );
+    ElasticLayoutDownloader layoutDownloader =
+        ElasticLayoutDownloader(mockClient);
 
-    LayoutDownloadResponse downloadResponse = await layoutDownloader
-        .downloadLayout(
-          ntConnection: ntConnection,
-          preferences: preferences,
-          layoutName: 'elastic-layout 1',
-        );
+    LayoutDownloadResponse downloadResponse =
+        await layoutDownloader.downloadLayout(
+      ntConnection: ntConnection,
+      preferences: preferences,
+      layoutName: 'elastic-layout 1',
+    );
 
     expect(downloadResponse.successful, isTrue);
     expect(downloadResponse.data, jsonEncode(layoutOne));
@@ -169,40 +174,35 @@ void main() {
         },
       );
 
-      ElasticLayoutDownloader layoutDownloader = ElasticLayoutDownloader(
-        mockClient,
-      );
+      ElasticLayoutDownloader layoutDownloader =
+          ElasticLayoutDownloader(mockClient);
 
-      LayoutDownloadResponse downloadResponse = await layoutDownloader
-          .downloadLayout(
-            ntConnection: createMockOfflineNT4(),
-            preferences: preferences,
-            layoutName: 'elastic-layout 1',
-          );
+      LayoutDownloadResponse downloadResponse =
+          await layoutDownloader.downloadLayout(
+        ntConnection: createMockOfflineNT4(),
+        preferences: preferences,
+        layoutName: 'elastic-layout 1',
+      );
 
       expect(downloadResponse.successful, false);
-      expect(
-        downloadResponse.data,
-        'Cannot download a remote layout while disconnected from the robot.',
-      );
+      expect(downloadResponse.data,
+          'Cannot download a remote layout while disconnected from the robot.');
     });
 
     test('client response throws an error', () async {
       MockClient mockClient = MockClient();
-      when(
-        mockClient.get(any),
-      ).thenAnswer((_) => throw ClientException('Client Exception'));
+      when(mockClient.get(any))
+          .thenAnswer((_) => throw ClientException('Client Exception'));
 
-      ElasticLayoutDownloader layoutDownloader = ElasticLayoutDownloader(
-        mockClient,
+      ElasticLayoutDownloader layoutDownloader =
+          ElasticLayoutDownloader(mockClient);
+
+      LayoutDownloadResponse downloadResponse =
+          await layoutDownloader.downloadLayout(
+        ntConnection: createMockOnlineNT4(),
+        preferences: preferences,
+        layoutName: 'elastic-layout 1',
       );
-
-      LayoutDownloadResponse downloadResponse = await layoutDownloader
-          .downloadLayout(
-            ntConnection: createMockOnlineNT4(),
-            preferences: preferences,
-            layoutName: 'elastic-layout 1',
-          );
 
       expect(downloadResponse.successful, false);
       expect(downloadResponse.data, 'Client Exception');
@@ -216,22 +216,19 @@ void main() {
         },
       );
 
-      ElasticLayoutDownloader layoutDownloader = ElasticLayoutDownloader(
-        mockClient,
-      );
+      ElasticLayoutDownloader layoutDownloader =
+          ElasticLayoutDownloader(mockClient);
 
-      LayoutDownloadResponse downloadResponse = await layoutDownloader
-          .downloadLayout(
-            ntConnection: createMockOnlineNT4(),
-            preferences: preferences,
-            layoutName: 'elastic-layout 1',
-          );
+      LayoutDownloadResponse downloadResponse =
+          await layoutDownloader.downloadLayout(
+        ntConnection: createMockOnlineNT4(),
+        preferences: preferences,
+        layoutName: 'elastic-layout 1',
+      );
 
       expect(downloadResponse.successful, false);
       expect(
-        downloadResponse.data,
-        'File "elastic-layout 1.json" was not found',
-      );
+          downloadResponse.data, 'File "elastic-layout 1.json" was not found');
     });
 
     test('http request gives invalid status code', () async {
@@ -242,16 +239,15 @@ void main() {
         },
       );
 
-      ElasticLayoutDownloader layoutDownloader = ElasticLayoutDownloader(
-        mockClient,
-      );
+      ElasticLayoutDownloader layoutDownloader =
+          ElasticLayoutDownloader(mockClient);
 
-      LayoutDownloadResponse downloadResponse = await layoutDownloader
-          .downloadLayout(
-            ntConnection: createMockOnlineNT4(),
-            preferences: preferences,
-            layoutName: 'elastic-layout 1',
-          );
+      LayoutDownloadResponse downloadResponse =
+          await layoutDownloader.downloadLayout(
+        ntConnection: createMockOnlineNT4(),
+        preferences: preferences,
+        layoutName: 'elastic-layout 1',
+      );
 
       expect(downloadResponse.successful, false);
       expect(downloadResponse.data, 'Request returned status code 353');

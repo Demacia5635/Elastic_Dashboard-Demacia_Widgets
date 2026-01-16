@@ -7,16 +7,16 @@ import 'package:elastic_dashboard/services/ip_address_util.dart';
 
 extension LogLevelUtil on Level {
   String get levelName => switch (this) {
-    Level.all => 'All',
-    Level.trace => 'Trace',
-    Level.debug => 'Debug',
-    Level.info => 'Info',
-    Level.warning => 'Warning',
-    Level.error => 'Error',
-    Level.fatal => 'Fatal',
-    Level.off => 'Off',
-    _ => 'Unknown',
-  };
+        Level.all => 'All',
+        Level.trace => 'Trace',
+        Level.debug => 'Debug',
+        Level.info => 'Info',
+        Level.warning => 'Warning',
+        Level.error => 'Error',
+        Level.fatal => 'Fatal',
+        Level.off => 'Off',
+        _ => 'Unknown',
+      };
 }
 
 class Settings {
@@ -29,19 +29,11 @@ class Settings {
   static bool isWindowDraggable = true;
   static bool isWindowMaximizable = true;
 
-  static final List<Level> logLevels = Level.values
-      .where((level) => level.value % 1000 == 0)
-      .toList();
+  static final List<Level> logLevels =
+      Level.values.where((level) => level.value % 1000 == 0).toList();
 }
 
 class Defaults {
-  static String defaultIPForPlatform() {
-    if (kIsWeb) {
-      return Uri.base.host;
-    }
-    return '127.0.0.1';
-  }
-
   static IPAddressMode ipAddressMode = IPAddressMode.driverStation;
 
   static FlexSchemeVariant themeVariant = FlexSchemeVariant.material3Legacy;
@@ -49,7 +41,7 @@ class Defaults {
   static const String defaultVariantName = 'Material-3 Legacy (Default)';
   static const String defaultLogLevelName = 'Automatic';
   static const Level logLevel = kDebugMode ? Level.debug : Level.info;
-  static final String ipAddress = defaultIPForPlatform();
+  static const String ipAddress = '127.0.0.1';
 
   static const int teamNumber = 9999;
   static const int gridSize = 128;

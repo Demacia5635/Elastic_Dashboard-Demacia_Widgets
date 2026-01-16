@@ -3,16 +3,16 @@ import 'package:flutter/material.dart';
 import 'package:collection/collection.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:elastic_dashboard/services/nt4_type.dart';
+import 'package:elastic_dashboard/services/nt4_client.dart';
 import 'package:elastic_dashboard/services/nt_connection.dart';
-import 'package:elastic_dashboard/services/nt_widget_registry.dart';
+import 'package:elastic_dashboard/services/nt_widget_builder.dart';
 import 'package:elastic_dashboard/services/settings.dart';
 import 'package:elastic_dashboard/widgets/draggable_containers/draggable_widget_container.dart';
 import 'package:elastic_dashboard/widgets/draggable_containers/models/nt_widget_container_model.dart';
 import 'package:elastic_dashboard/widgets/draggable_containers/models/widget_container_model.dart';
 import 'package:elastic_dashboard/widgets/network_tree/networktables_tree.dart';
-import 'package:elastic_dashboard/widgets/nt_widgets/multi_topic/camera_stream.dart';
-import 'package:elastic_dashboard/widgets/nt_widgets/multi_topic/yagsl_swerve_drive.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/camera_stream.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/yagsl_swerve_drive.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/nt_widget.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/boolean_box.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/text_display.dart';
@@ -23,7 +23,7 @@ class NetworkTableTreeRow {
   final String topic;
   final String rowName;
 
-  final TreeTopicEntry? entry;
+  final NT4Topic? ntTopic;
 
   List<NetworkTableTreeRow> children = [];
 
@@ -32,7 +32,7 @@ class NetworkTableTreeRow {
     required this.preferences,
     required this.topic,
     required this.rowName,
-    this.entry,
+    this.ntTopic,
   });
 
   bool hasRow(String name) {
@@ -80,17 +80,14 @@ class NetworkTableTreeRow {
     throw Exception("Trying to retrieve a row that doesn't exist");
   }
 
-  NetworkTableTreeRow createNewRow({
-    required String topic,
-    required String name,
-    TreeTopicEntry? entry,
-  }) {
+  NetworkTableTreeRow createNewRow(
+      {required String topic, required String name, NT4Topic? ntTopic}) {
     NetworkTableTreeRow newRow = NetworkTableTreeRow(
       ntConnection: ntConnection,
       preferences: preferences,
       topic: topic,
       rowName: name,
-      entry: entry,
+      ntTopic: ntTopic,
     );
     addRow(newRow);
 
@@ -118,49 +115,53 @@ class NetworkTableTreeRow {
   }
 
   static SingleTopicNTWidgetModel? getNTWidgetFromTopic(
-    NTConnection ntConnection,
-    SharedPreferences preferences,
-    TreeTopicEntry entry,
-  ) {
-    NT4Type entryType = entry.type;
-
-    if (entryType.dataType == NT4DataType.boolean) {
-      return BooleanBoxModel(
-        ntConnection: ntConnection,
-        preferences: preferences,
-        topic: entry.topic.name,
-        dataType: entryType,
-        ntStructMeta: entry.meta,
-      );
-    } else if (entryType.isViewable) {
-      return TextDisplayModel(
-        ntConnection: ntConnection,
-        preferences: preferences,
-        topic: entry.topic.name,
-        dataType: entryType,
-        ntStructMeta: entry.meta,
-      );
+      NTConnection ntConnection,
+      SharedPreferences preferences,
+      NT4Topic ntTopic) {
+    switch (ntTopic.type) {
+      case NT4TypeStr.kFloat64:
+      case NT4TypeStr.kInt:
+      case NT4TypeStr.kFloat32:
+      case NT4TypeStr.kBoolArr:
+      case NT4TypeStr.kFloat64Arr:
+      case NT4TypeStr.kFloat32Arr:
+      case NT4TypeStr.kIntArr:
+      case NT4TypeStr.kString:
+      case NT4TypeStr.kStringArr:
+        return TextDisplayModel(
+          ntConnection: ntConnection,
+          preferences: preferences,
+          topic: ntTopic.name,
+          dataType: ntTopic.type,
+        );
+      case NT4TypeStr.kBool:
+        return BooleanBoxModel(
+          ntConnection: ntConnection,
+          preferences: preferences,
+          topic: ntTopic.name,
+          dataType: ntTopic.type,
+        );
     }
-
     return null;
   }
 
   Future<NTWidgetModel?>? getPrimaryWidget() async {
-    if (entry == null) {
+    if (ntTopic == null) {
       if (hasRow('.type')) {
         return await getTypedWidget('$topic/.type');
       }
 
-      bool isCameraStream =
-          hasRows(['mode', 'modes', 'source', 'streams']) &&
+      bool isCameraStream = hasRows([
+            'mode',
+            'modes',
+            'source',
+            'streams',
+          ]) &&
           (hasRow('description') || hasRow('connected'));
 
       if (isCameraStream) {
         return CameraStreamModel(
-          ntConnection: ntConnection,
-          preferences: preferences,
-          topic: topic,
-        );
+            ntConnection: ntConnection, preferences: preferences, topic: topic);
       }
 
       if (hasRows([
@@ -173,23 +174,19 @@ class NetworkTableTreeRow {
         'sizeLeftRight',
       ])) {
         return YAGSLSwerveDriveModel(
-          ntConnection: ntConnection,
-          preferences: preferences,
-          topic: topic,
-        );
+            ntConnection: ntConnection, preferences: preferences, topic: topic);
       }
 
       return null;
     }
 
-    return getNTWidgetFromTopic(ntConnection, preferences, entry!);
+    return getNTWidgetFromTopic(ntConnection, preferences, ntTopic!);
   }
 
-  Future<String?> getTypeString(String typeTopic) async =>
-      ntConnection.subscribeAndRetrieveData(
-        typeTopic,
-        timeout: const Duration(milliseconds: 500),
-      );
+  Future<String?> getTypeString(String typeTopic) async {
+    return ntConnection.subscribeAndRetrieveData(typeTopic,
+        timeout: const Duration(milliseconds: 500));
+  }
 
   Future<NTWidgetModel?>? getTypedWidget(String typeTopic) async {
     String? type = await getTypeString(typeTopic);
@@ -198,10 +195,9 @@ class NetworkTableTreeRow {
       return null;
     }
 
-    return NTWidgetRegistry.buildNTModelFromType(
+    return NTWidgetBuilder.buildNTModelFromType(
       ntConnection,
       preferences,
-      entry?.meta,
       type,
       topic,
     );
@@ -212,9 +208,8 @@ class NetworkTableTreeRow {
         .whereNot((e) => e.rowName.startsWith('.'))
         .map((e) => e.toWidgetContainerModel(resortToListLayout: false));
 
-    Iterable<NTWidgetContainerModel> listChildren = (await Future.wait(
-      childrenFutures,
-    )).whereType();
+    Iterable<NTWidgetContainerModel> listChildren =
+        (await Future.wait(childrenFutures)).whereType();
 
     if (listChildren.isEmpty) {
       return null;
@@ -229,10 +224,10 @@ class NetworkTableTreeRow {
   }) async {
     NTWidgetModel? primary = await getPrimaryWidget();
 
-    if (primary == null || !NTWidgetRegistry.isRegistered(primary.type)) {
+    if (primary == null || !NTWidgetBuilder.isRegistered(primary.type)) {
       primary?.unSubscribe();
-      primary?.softDispose(deleting: true);
-      primary?.dispose();
+      primary?.disposeWidget(deleting: true);
+      primary?.forceDispose();
 
       if (resortToListLayout && listLayoutBuilder != null) {
         List<NTWidgetContainerModel>? listLayoutChildren =
@@ -248,17 +243,17 @@ class NetworkTableTreeRow {
       return null;
     }
 
-    NTWidget? widget = NTWidgetRegistry.buildNTWidgetFromModel(primary);
+    NTWidget? widget = NTWidgetBuilder.buildNTWidgetFromModel(primary);
 
     if (widget == null) {
       primary.unSubscribe();
-      primary.softDispose(deleting: true);
-      primary.dispose();
+      primary.disposeWidget(deleting: true);
+      primary.forceDispose();
       return null;
     }
 
-    double width = NTWidgetRegistry.getDefaultWidth(primary);
-    double height = NTWidgetRegistry.getDefaultHeight(primary);
+    double width = NTWidgetBuilder.getDefaultWidth(primary);
+    double height = NTWidgetBuilder.getDefaultHeight(primary);
 
     return NTWidgetContainerModel(
       ntConnection: ntConnection,
@@ -274,18 +269,18 @@ class NetworkTableTreeRow {
     if (primary == null) {
       return null;
     }
-    NTWidget? widget = NTWidgetRegistry.buildNTWidgetFromModel(primary);
+    NTWidget? widget = NTWidgetBuilder.buildNTWidgetFromModel(primary);
 
     if (widget == null) {
       primary.unSubscribe();
-      primary.softDispose(deleting: true);
-      primary.dispose();
+      primary.disposeWidget(deleting: true);
+      primary.forceDispose();
 
       return null;
     }
 
-    double width = NTWidgetRegistry.getDefaultWidth(primary);
-    double height = NTWidgetRegistry.getDefaultHeight(primary);
+    double width = NTWidgetBuilder.getDefaultWidth(primary);
+    double height = NTWidgetBuilder.getDefaultHeight(primary);
 
     return WidgetContainer(
       title: rowName,

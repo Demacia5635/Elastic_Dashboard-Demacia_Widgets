@@ -25,7 +25,10 @@ class LargeTextDisplay extends NTWidget {
             ClipRRect(
               child: FittedBox(
                 fit: BoxFit.contain,
-                child: Text(data, textAlign: TextAlign.center),
+                child: Text(
+                  data,
+                  textAlign: TextAlign.center,
+                ),
               ),
             ),
           ],

@@ -71,7 +71,7 @@ void main() {
       PrefKeys.ipAddress: '127.0.0.1',
       PrefKeys.teamNumber: 353,
       PrefKeys.ipAddressMode: IPAddressMode.driverStation.index,
-      PrefKeys.teamColor: Colors.blueAccent.toARGB32(),
+      PrefKeys.teamColor: Colors.blueAccent.value,
       PrefKeys.showGrid: false,
       PrefKeys.gridSize: 128,
       PrefKeys.cornerRadius: 15.0,
@@ -152,10 +152,8 @@ void main() {
     await widgetTester.pumpAndSettle();
 
     expect(find.text('Log Level'), findsOneWidget);
-    expect(
-      find.widgetWithText(DialogTextInput, 'Grid DPI'),
-      findsOneWidget,
-    );
+    expect(find.widgetWithText(DialogTextInput, 'Grid DPI (Experimental)'),
+        findsOneWidget);
     expect(find.text('Open Assets Folder'), findsOneWidget);
 
     final closeButton = find.widgetWithText(TextButton, 'Close');
@@ -190,10 +188,8 @@ void main() {
     final teamNumberField = find.widgetWithText(DialogTextInput, 'Team Number');
 
     expect(teamNumberField, findsOneWidget);
-    expect(
-      find.descendant(of: teamNumberField, matching: find.text('353')),
-      findsOneWidget,
-    );
+    expect(find.descendant(of: teamNumberField, matching: find.text('353')),
+        findsOneWidget);
 
     await widgetTester.enterText(teamNumberField, '2601');
     await widgetTester.testTextInput.receiveAction(TextInputAction.done);
@@ -297,9 +293,7 @@ void main() {
               fakeSettings.changeDefaultPeriod();
 
               await preferences.setDouble(
-                PrefKeys.defaultPeriod,
-                double.parse(period!),
-              );
+                  PrefKeys.defaultPeriod, double.parse(period!));
             },
           ),
         ),
@@ -333,9 +327,7 @@ void main() {
               fakeSettings.changeDefaultGraphPeriod();
 
               await preferences.setDouble(
-                PrefKeys.defaultGraphPeriod,
-                double.parse(period!),
-              );
+                  PrefKeys.defaultGraphPeriod, double.parse(period!));
             },
           ),
         ),
@@ -344,10 +336,8 @@ void main() {
 
     await widgetTester.pumpAndSettle();
 
-    final periodField = find.widgetWithText(
-      DialogTextInput,
-      'Default Graph Period',
-    );
+    final periodField =
+        find.widgetWithText(DialogTextInput, 'Default Graph Period');
 
     expect(periodField, findsOneWidget);
 
@@ -356,9 +346,8 @@ void main() {
     await widgetTester.pumpAndSettle();
 
     expect(preferences.getDouble(PrefKeys.defaultGraphPeriod), 0.05);
-    verify(
-      fakeSettings.changeDefaultGraphPeriod(),
-    ).called(greaterThanOrEqualTo(1));
+    verify(fakeSettings.changeDefaultGraphPeriod())
+        .called(greaterThanOrEqualTo(1));
   });
 
   testWidgets('Change team color', (widgetTester) async {
@@ -373,7 +362,7 @@ void main() {
             onColorChanged: (color) async {
               fakeSettings.changeColor();
 
-              await preferences.setInt(PrefKeys.teamColor, color.toARGB32());
+              await preferences.setInt(PrefKeys.teamColor, color.value);
             },
           ),
         ),
@@ -418,10 +407,8 @@ void main() {
     expect(saveButton, findsOneWidget);
     await widgetTester.tap(saveButton);
 
-    expect(
-      preferences.getInt(PrefKeys.teamColor),
-      const Color.fromARGB(255, 0, 0, 255).toARGB32(),
-    );
+    expect(preferences.getInt(PrefKeys.teamColor),
+        const Color.fromARGB(255, 0, 0, 255).value);
     verify(fakeSettings.changeColor()).called(greaterThanOrEqualTo(1));
   });
 
@@ -437,9 +424,7 @@ void main() {
               fakeSettings.changeThemeVariant();
 
               await preferences.setString(
-                PrefKeys.themeVariant,
-                variant.variantName,
-              );
+                  PrefKeys.themeVariant, variant.variantName);
             },
             preferences: preferences,
           ),
@@ -453,10 +438,8 @@ void main() {
     await widgetTester.tap(appearanceSettings);
     await widgetTester.pumpAndSettle();
 
-    final themeVariantDropdown = find.widgetWithText(
-      DialogDropdownChooser<String>,
-      'Chroma',
-    );
+    final themeVariantDropdown =
+        find.widgetWithText(DialogDropdownChooser<String>, 'Chroma');
 
     expect(themeVariantDropdown, findsOneWidget);
 
@@ -465,22 +448,18 @@ void main() {
 
     expect(find.text('Chroma'), findsNWidgets(2));
     expect(find.text('Material-3 Legacy (Default)'), findsOneWidget);
-    expect(find.text('Material-3 legacy'), findsNothing);
+    expect(find.text('Material-3 Legacy'), findsNothing);
 
     await widgetTester.tap(find.text('Material-3 Legacy (Default)'));
     await widgetTester.pumpAndSettle();
 
-    expect(
-      preferences.getString(PrefKeys.themeVariant),
-      FlexSchemeVariant.material3Legacy.variantName,
-    );
+    expect(preferences.getString(PrefKeys.themeVariant),
+        FlexSchemeVariant.material3Legacy.variantName);
 
     verify(fakeSettings.changeThemeVariant()).called(1);
 
     final newThemeVariantDropdown = find.widgetWithText(
-      DialogDropdownChooser<String>,
-      'Material-3 Legacy (Default)',
-    );
+        DialogDropdownChooser<String>, 'Material-3 Legacy (Default)');
 
     expect(newThemeVariantDropdown, findsOneWidget);
 
@@ -489,7 +468,7 @@ void main() {
     await widgetTester.pumpAndSettle();
 
     expect(find.text('Material-3 Legacy (Default)'), findsNWidgets(2));
-    expect(find.text('Material-3 legacy'), findsOneWidget);
+    expect(find.text('Material-3 Legacy'), findsOneWidget);
   });
 
   testWidgets('Toggle grid', (widgetTester) async {
@@ -522,13 +501,11 @@ void main() {
     expect(gridSwitch, findsOneWidget);
 
     // Widget tester.tap will not work for some reason
-    final switchWidget =
-        find
-                .descendant(of: gridSwitch, matching: find.byType(Switch))
-                .evaluate()
-                .first
-                .widget
-            as Switch;
+    final switchWidget = find
+        .descendant(of: gridSwitch, matching: find.byType(Switch))
+        .evaluate()
+        .first
+        .widget as Switch;
 
     switchWidget.onChanged?.call(true);
     await widgetTester.pumpAndSettle();
@@ -593,9 +570,7 @@ void main() {
               fakeSettings.changeCornerRadius();
 
               await preferences.setDouble(
-                PrefKeys.cornerRadius,
-                double.parse(radius!),
-              );
+                  PrefKeys.cornerRadius, double.parse(radius!));
             },
           ),
         ),
@@ -608,10 +583,8 @@ void main() {
     await widgetTester.tap(appearanceSettings);
     await widgetTester.pumpAndSettle();
 
-    final cornerRadiusField = find.widgetWithText(
-      DialogTextInput,
-      'Corner Radius',
-    );
+    final cornerRadiusField =
+        find.widgetWithText(DialogTextInput, 'Corner Radius');
 
     expect(cornerRadiusField, findsOneWidget);
 
@@ -649,20 +622,16 @@ void main() {
     await widgetTester.pumpAndSettle();
 
     final autoResizeSwitch = find.widgetWithText(
-      DialogToggleSwitch,
-      'Resize to Driver Station Height',
-    );
+        DialogToggleSwitch, 'Resize to Driver Station Height');
 
     expect(autoResizeSwitch, findsOneWidget);
 
     // Widget tester.tap will not work for some reason
-    final switchWidget =
-        find
-                .descendant(of: autoResizeSwitch, matching: find.byType(Switch))
-                .evaluate()
-                .first
-                .widget
-            as Switch;
+    final switchWidget = find
+        .descendant(of: autoResizeSwitch, matching: find.byType(Switch))
+        .evaluate()
+        .first
+        .widget as Switch;
 
     switchWidget.onChanged?.call(true);
     await widgetTester.pumpAndSettle();
@@ -701,21 +670,17 @@ void main() {
     await widgetTester.tap(appearanceSettings);
     await widgetTester.pumpAndSettle();
 
-    final windowSwitch = find.widgetWithText(
-      DialogToggleSwitch,
-      'Remember Window Position',
-    );
+    final windowSwitch =
+        find.widgetWithText(DialogToggleSwitch, 'Remember Window Position');
 
     expect(windowSwitch, findsOneWidget);
 
     // Widget tester.tap will not work for some reason
-    final switchWidget =
-        find
-                .descendant(of: windowSwitch, matching: find.byType(Switch))
-                .evaluate()
-                .first
-                .widget
-            as Switch;
+    final switchWidget = find
+        .descendant(of: windowSwitch, matching: find.byType(Switch))
+        .evaluate()
+        .first
+        .widget as Switch;
 
     switchWidget.onChanged?.call(true);
     await widgetTester.pumpAndSettle();
@@ -754,21 +719,17 @@ void main() {
     await widgetTester.tap(appearanceSettings);
     await widgetTester.pumpAndSettle();
 
-    final lockLayoutSwitch = find.widgetWithText(
-      DialogToggleSwitch,
-      'Lock Layout',
-    );
+    final lockLayoutSwitch =
+        find.widgetWithText(DialogToggleSwitch, 'Lock Layout');
 
     expect(lockLayoutSwitch, findsOneWidget);
 
     // Widget tester.tap will not work for some reason
-    final switchWidget =
-        find
-                .descendant(of: lockLayoutSwitch, matching: find.byType(Switch))
-                .evaluate()
-                .first
-                .widget
-            as Switch;
+    final switchWidget = find
+        .descendant(of: lockLayoutSwitch, matching: find.byType(Switch))
+        .evaluate()
+        .first
+        .widget as Switch;
 
     switchWidget.onChanged?.call(true);
     await widgetTester.pumpAndSettle();
@@ -807,24 +768,17 @@ void main() {
     await widgetTester.tap(appearanceSettings);
     await widgetTester.pumpAndSettle();
 
-    final autoSubmitButtonSwitch = find.widgetWithText(
-      DialogToggleSwitch,
-      'Auto Show Text Submit Button',
-    );
+    final autoSubmitButtonSwitch =
+        find.widgetWithText(DialogToggleSwitch, 'Auto Show Text Submit Button');
 
     expect(autoSubmitButtonSwitch, findsOneWidget);
 
     // Widget tester.tap will not work for some reason
-    final switchWidget =
-        find
-                .descendant(
-                  of: autoSubmitButtonSwitch,
-                  matching: find.byType(Switch),
-                )
-                .evaluate()
-                .first
-                .widget
-            as Switch;
+    final switchWidget = find
+        .descendant(of: autoSubmitButtonSwitch, matching: find.byType(Switch))
+        .evaluate()
+        .first
+        .widget as Switch;
 
     switchWidget.onChanged?.call(true);
     await widgetTester.pumpAndSettle();
@@ -867,10 +821,8 @@ void main() {
     await widgetTester.tap(devSettings);
     await widgetTester.pumpAndSettle();
 
-    final logLevelDropdown = find.widgetWithText(
-      DialogDropdownChooser<String>,
-      'Trace',
-    );
+    final logLevelDropdown =
+        find.widgetWithText(DialogDropdownChooser<String>, 'Trace');
 
     expect(logLevelDropdown, findsOneWidget);
 
@@ -887,10 +839,8 @@ void main() {
 
     verify(fakeSettings.changeLogLevel()).called(1);
 
-    final newLogLevelDropdown = find.widgetWithText(
-      DialogDropdownChooser<String>,
-      'Automatic',
-    );
+    final newLogLevelDropdown =
+        find.widgetWithText(DialogDropdownChooser<String>, 'Automatic');
 
     expect(newLogLevelDropdown, findsOneWidget);
 
@@ -920,9 +870,7 @@ void main() {
 
               if (newOverride != null) {
                 await preferences.setDouble(
-                  PrefKeys.gridDpiOverride,
-                  newOverride,
-                );
+                    PrefKeys.gridDpiOverride, newOverride);
               } else {
                 await preferences.remove(PrefKeys.gridDpiOverride);
               }
@@ -938,7 +886,8 @@ void main() {
     await widgetTester.tap(devSettings);
     await widgetTester.pumpAndSettle();
 
-    final dpiOverride = find.widgetWithText(DialogTextInput, 'Grid DPI');
+    final dpiOverride =
+        find.widgetWithText(DialogTextInput, 'Grid DPI (Experimental)');
 
     expect(dpiOverride, findsOneWidget);
 

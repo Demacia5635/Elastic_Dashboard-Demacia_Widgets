@@ -3,21 +3,6 @@ import 'package:version/version.dart';
 
 import 'package:elastic_dashboard/services/log.dart';
 
-extension on Release {
-  Version? getVersion() {
-    if (tagName == null) return null;
-
-    if (!tagName!.startsWith('v')) return null;
-
-    String versionName = tagName!.substring(1);
-    try {
-      return Version.parse(versionName);
-    } catch (_) {
-      return null;
-    }
-  }
-}
-
 class UpdateChecker {
   final GitHub _github;
   final String currentVersion;
@@ -28,30 +13,8 @@ class UpdateChecker {
     logger.info('Checking for updates');
 
     try {
-      Version current = Version.parse(currentVersion);
-
-      final List<Release> releases = await _github.repositories
-          .listReleases(
-            RepositorySlug('Demacia5635', 'Elastic_Dashboard-Demacia_Widgets'),
-          )
-          .toList();
-
-      final Iterable<Release> yearReleases = releases.where((release) {
-        Version? latest = release.getVersion();
-
-        if (latest == null) return false;
-        if (latest.major != current.major) return false;
-
-        return true;
-      });
-
-      Release? latestRelease = yearReleases.firstOrNull;
-      if (latestRelease == null) {
-        return UpdateCheckerResponse(
-          updateAvailable: false,
-          error: false,
-        );
-      }
+      Release latestRelease = await _github.repositories.getLatestRelease(
+          RepositorySlug('Demacia5635', 'Elastic_Dashboard-Demacia_Widgets'));
 
       String? tagName = latestRelease.tagName;
 
@@ -63,9 +26,7 @@ class UpdateChecker {
           errorMessage: 'Release tag not found',
         );
       }
-      Version? latest = latestRelease.getVersion();
-
-      if (latest == null) {
+      if (!tagName.startsWith('v')) {
         logger.error('Invalid version name: $tagName');
         return UpdateCheckerResponse(
           updateAvailable: false,
@@ -73,6 +34,11 @@ class UpdateChecker {
           errorMessage: 'Invalid version name: \'$tagName\'',
         );
       }
+
+      String versionName = tagName.substring(1);
+
+      Version current = Version.parse(currentVersion);
+      Version latest = Version.parse(versionName);
 
       bool updateAvailable = current < latest;
 

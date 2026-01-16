@@ -9,12 +9,11 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:elastic_dashboard/services/nt_connection.dart';
-import 'package:elastic_dashboard/services/nt_widget_registry.dart';
+import 'package:elastic_dashboard/services/nt_widget_builder.dart';
 import 'package:elastic_dashboard/services/settings.dart';
 import 'package:elastic_dashboard/widgets/draggable_containers/draggable_list_layout.dart';
 import 'package:elastic_dashboard/widgets/draggable_containers/draggable_nt_widget_container.dart';
 import 'package:elastic_dashboard/widgets/draggable_containers/draggable_widget_container.dart';
-import 'package:elastic_dashboard/widgets/gesture/context_menu_listener.dart';
 import 'draggable_containers/models/layout_container_model.dart';
 import 'draggable_containers/models/list_layout_model.dart';
 import 'draggable_containers/models/nt_widget_container_model.dart';
@@ -67,7 +66,10 @@ class TabGridModel extends ChangeNotifier {
     }
 
     if (jsonData['layouts'] != null) {
-      loadLayoutsFromJson(jsonData, onJsonLoadingWarning: onJsonLoadingWarning);
+      loadLayoutsFromJson(
+        jsonData,
+        onJsonLoadingWarning: onJsonLoadingWarning,
+      );
     }
   }
 
@@ -154,15 +156,15 @@ class TabGridModel extends ChangeNotifier {
             ListLayoutModel.fromJson(
               jsonData: widgetData,
               preferences: preferences,
-              ntWidgetBuilder:
-                  (preferences, jsonData, enabled, {onJsonLoadingWarning}) =>
-                      NTWidgetContainerModel.fromJson(
-                        ntConnection: ntConnection,
-                        jsonData: jsonData,
-                        preferences: preferences,
-                        enabled: ntConnection.isNT4Connected,
-                        onJsonLoadingWarning: onJsonLoadingWarning,
-                      ),
+              ntWidgetBuilder: (preferences, jsonData, enabled,
+                      {onJsonLoadingWarning}) =>
+                  NTWidgetContainerModel.fromJson(
+                ntConnection: ntConnection,
+                jsonData: jsonData,
+                preferences: preferences,
+                enabled: ntConnection.isNT4Connected,
+                onJsonLoadingWarning: onJsonLoadingWarning,
+              ),
               enabled: ntConnection.isNT4Connected,
               dragOutFunctions: (
                 dragOutUpdate: layoutDragOutUpdate,
@@ -178,10 +180,8 @@ class TabGridModel extends ChangeNotifier {
     }
   }
 
-  void loadContainersFromJson(
-    Map<String, dynamic> jsonData, {
-    Function(String message)? onJsonLoadingWarning,
-  }) {
+  void loadContainersFromJson(Map<String, dynamic> jsonData,
+      {Function(String message)? onJsonLoadingWarning}) {
     for (Map<String, dynamic> containerData in jsonData['containers']) {
       addWidget(
         NTWidgetContainerModel.fromJson(
@@ -195,15 +195,12 @@ class TabGridModel extends ChangeNotifier {
     }
   }
 
-  void loadLayoutsFromJson(
-    Map<String, dynamic> jsonData, {
-    Function(String warningMessage)? onJsonLoadingWarning,
-  }) {
+  void loadLayoutsFromJson(Map<String, dynamic> jsonData,
+      {Function(String warningMessage)? onJsonLoadingWarning}) {
     for (Map<String, dynamic> layoutData in jsonData['layouts']) {
       if (layoutData['type'] == null) {
-        onJsonLoadingWarning?.call(
-          'Layout widget type not specified, ignoring data.',
-        );
+        onJsonLoadingWarning
+            ?.call('Layout widget type not specified, ignoring data.');
         continue;
       }
 
@@ -214,15 +211,15 @@ class TabGridModel extends ChangeNotifier {
           widget = ListLayoutModel.fromJson(
             preferences: preferences,
             jsonData: layoutData,
-            ntWidgetBuilder:
-                (preferences, jsonData, enabled, {onJsonLoadingWarning}) =>
-                    NTWidgetContainerModel.fromJson(
-                      ntConnection: ntConnection,
-                      jsonData: jsonData,
-                      preferences: preferences,
-                      enabled: ntConnection.isNT4Connected,
-                      onJsonLoadingWarning: onJsonLoadingWarning,
-                    ),
+            ntWidgetBuilder: (preferences, jsonData, enabled,
+                    {onJsonLoadingWarning}) =>
+                NTWidgetContainerModel.fromJson(
+              ntConnection: ntConnection,
+              jsonData: jsonData,
+              preferences: preferences,
+              enabled: ntConnection.isNT4Connected,
+              onJsonLoadingWarning: onJsonLoadingWarning,
+            ),
             enabled: ntConnection.isNT4Connected,
             dragOutFunctions: (
               dragOutUpdate: layoutDragOutUpdate,
@@ -252,7 +249,10 @@ class TabGridModel extends ChangeNotifier {
       }
     }
 
-    return {'layouts': layouts, 'containers': containers};
+    return {
+      'layouts': layouts,
+      'containers': containers,
+    };
   }
 
   Offset getLocalPosition(Offset globalPosition) {
@@ -260,8 +260,8 @@ class TabGridModel extends ChangeNotifier {
       return Offset.zero;
     }
 
-    RenderBox? ancestor = tabGridContext!
-        .findAncestorRenderObjectOfType<RenderBox>();
+    RenderBox? ancestor =
+        tabGridContext!.findAncestorRenderObjectOfType<RenderBox>();
 
     Offset localPosition = ancestor!.globalToLocal(globalPosition);
 
@@ -269,11 +269,8 @@ class TabGridModel extends ChangeNotifier {
   }
 
   Offset getDragInWidgetCenter(
-    WidgetContainerModel widget,
-    Offset globalPosition,
-  ) {
-    Offset localPosition =
-        getLocalPosition(globalPosition) -
+      WidgetContainerModel widget, Offset globalPosition) {
+    Offset localPosition = getLocalPosition(globalPosition) -
         Offset(widget.displayRect.width, widget.displayRect.height) / 2;
 
     if (localPosition.dy < 0 || localPosition.dx < 0) {
@@ -285,7 +282,9 @@ class TabGridModel extends ChangeNotifier {
     return localPosition;
   }
 
-  bool isDraggingInContainer() => _containerDraggingIn != null;
+  bool isDraggingInContainer() {
+    return _containerDraggingIn != null;
+  }
 
   /// Returns weather `widget` is able to be moved to `location` without overlapping anything else.
   ///
@@ -308,8 +307,9 @@ class TabGridModel extends ChangeNotifier {
     return true;
   }
 
-  bool isValidLayoutLocation(Offset globalPosition) =>
-      getLayoutAtLocation(globalPosition) != null;
+  bool isValidLayoutLocation(Offset globalPosition) {
+    return getLayoutAtLocation(globalPosition) != null;
+  }
 
   /// Returns weather `location` will overlap with widgets already on the dashboard
   bool isValidLocation(Rect location) {
@@ -346,7 +346,7 @@ class TabGridModel extends ChangeNotifier {
     model.previewVisible = false;
     model.validLocation = true;
 
-    model.softDispose();
+    model.disposeModel();
   }
 
   void onWidgetDragEnd(WidgetContainerModel model) {
@@ -362,7 +362,7 @@ class TabGridModel extends ChangeNotifier {
     model.previewVisible = false;
     model.validLocation = true;
 
-    model.softDispose(deleting: false);
+    model.disposeModel(deleting: false);
   }
 
   void onWidgetDragCancel(WidgetContainerModel model) {
@@ -381,14 +381,11 @@ class TabGridModel extends ChangeNotifier {
     model.resizing = false;
     model.draggingIntoLayout = false;
 
-    model.softDispose();
+    model.disposeModel();
   }
 
   void onWidgetUpdate(
-    WidgetContainerModel model,
-    Rect newRect,
-    TransformResult result,
-  ) {
+      WidgetContainerModel model, Rect newRect, TransformResult result) {
     double newWidth = max(newRect.width, model.minWidth);
     double newHeight = max(newRect.height, model.minHeight);
 
@@ -437,14 +434,10 @@ class TabGridModel extends ChangeNotifier {
 
     int gridSize = preferences.getInt(PrefKeys.gridSize) ?? Defaults.gridSize;
 
-    double previewX = DraggableWidgetContainer.snapToGrid(
-      constrainedRect.left,
-      gridSize,
-    );
-    double previewY = DraggableWidgetContainer.snapToGrid(
-      constrainedRect.top,
-      gridSize,
-    );
+    double previewX =
+        DraggableWidgetContainer.snapToGrid(constrainedRect.left, gridSize);
+    double previewY =
+        DraggableWidgetContainer.snapToGrid(constrainedRect.top, gridSize);
 
     double previewWidth = DraggableWidgetContainer.snapToGrid(
       max(model.minWidth, constrainedRect.width),
@@ -503,8 +496,7 @@ class TabGridModel extends ChangeNotifier {
       model.validLocation = true;
       model.draggingIntoLayout = false;
     } else {
-      validLocation =
-          isValidLayoutLocation(model.cursorGlobalLocation) &&
+      validLocation = isValidLayoutLocation(model.cursorGlobalLocation) &&
           model is! LayoutContainerModel &&
           !model.resizing;
 
@@ -514,20 +506,14 @@ class TabGridModel extends ChangeNotifier {
   }
 
   void _ntContainerOnUpdate(
-    WidgetContainerModel widget,
-    Rect newRect,
-    TransformResult result,
-  ) {
+      WidgetContainerModel widget, Rect newRect, TransformResult result) {
     onWidgetUpdate(widget, newRect, result);
   }
 
   void _ntContainerOnDragBegin(WidgetContainerModel widget) {}
 
-  void _ntContainerOnDragEnd(
-    WidgetContainerModel model,
-    Rect releaseRect, {
-    Offset? globalPosition,
-  }) {
+  void _ntContainerOnDragEnd(WidgetContainerModel model, Rect releaseRect,
+      {Offset? globalPosition}) {
     onWidgetDragEnd(model);
 
     NTWidgetContainerModel ntContainer = model as NTWidgetContainerModel;
@@ -554,20 +540,14 @@ class TabGridModel extends ChangeNotifier {
   }
 
   void _layoutContainerOnUpdate(
-    WidgetContainerModel widget,
-    Rect newRect,
-    TransformResult result,
-  ) {
+      WidgetContainerModel widget, Rect newRect, TransformResult result) {
     onWidgetUpdate(widget, newRect, result);
   }
 
   void _layoutContainerOnDragBegin(WidgetContainerModel widget) {}
 
-  void _layoutContainerOnDragEnd(
-    WidgetContainerModel widget,
-    Rect releaseRect, {
-    Offset? globalPosition,
-  }) {
+  void _layoutContainerOnDragEnd(WidgetContainerModel widget, Rect releaseRect,
+      {Offset? globalPosition}) {
     onWidgetDragEnd(widget);
   }
 
@@ -578,9 +558,7 @@ class TabGridModel extends ChangeNotifier {
   void _layoutContainerOnResizeBegin(WidgetContainerModel widget) {}
 
   void _layoutContainerOnResizeEnd(
-    WidgetContainerModel widget,
-    Rect releaseRect,
-  ) {
+      WidgetContainerModel widget, Rect releaseRect) {
     onWidgetResizeEnd(widget);
   }
 
@@ -619,10 +597,8 @@ class TabGridModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool placeDragInWidget(
-    WidgetContainerModel widget, [
-    bool fromLayout = false,
-  ]) {
+  bool placeDragInWidget(WidgetContainerModel widget,
+      [bool fromLayout = false]) {
     if (_containerDraggingIn == null) {
       return false;
     }
@@ -648,17 +624,16 @@ class TabGridModel extends ChangeNotifier {
     // If dragging into layout
     if (widget is NTWidgetContainerModel &&
         isValidLayoutLocation(widget.cursorGlobalLocation)) {
-      LayoutContainerModel layoutContainer = getLayoutAtLocation(
-        widget.cursorGlobalLocation,
-      )!;
+      LayoutContainerModel layoutContainer =
+          getLayoutAtLocation(widget.cursorGlobalLocation)!;
 
       if (layoutContainer.willAcceptWidget(widget)) {
         layoutContainer.addWidget(widget);
       } else {
-        widget.softDispose(deleting: !fromLayout);
+        widget.disposeModel(deleting: !fromLayout);
         if (!fromLayout) {
           widget.unSubscribe();
-          widget.dispose();
+          widget.forceDispose();
         }
 
         notifyListeners();
@@ -667,10 +642,10 @@ class TabGridModel extends ChangeNotifier {
     } else if (!isValidMoveLocation(widget, previewLocation)) {
       _containerDraggingIn = null;
 
-      widget.softDispose(deleting: !fromLayout);
+      widget.disposeModel(deleting: !fromLayout);
       if (!fromLayout) {
         widget.unSubscribe();
-        widget.dispose();
+        widget.forceDispose();
       }
 
       notifyListeners();
@@ -684,7 +659,7 @@ class TabGridModel extends ChangeNotifier {
 
     _containerDraggingIn = null;
 
-    widget.softDispose();
+    widget.disposeModel();
     notifyListeners();
 
     return true;
@@ -703,24 +678,28 @@ class TabGridModel extends ChangeNotifier {
   ListLayoutModel createListLayout({
     String title = 'List Layout',
     List<NTWidgetContainerModel>? children,
-  }) => ListLayoutModel(
-    preferences: preferences,
-    title: title,
-    initialPosition: Rect.fromLTWH(
-      0.0,
-      0.0,
-      NTWidgetRegistry.getNormalSize(preferences.getInt(PrefKeys.gridSize)) * 2,
-      NTWidgetRegistry.getNormalSize(preferences.getInt(PrefKeys.gridSize)) * 2,
-    ),
-    children: children,
-    minWidth: 128.0,
-    minHeight: 128.0,
-    dragOutFunctions: (
-      dragOutUpdate: layoutDragOutUpdate,
-      dragOutEnd: layoutDragOutEnd,
-    ),
-    onDragCancel: _layoutContainerOnDragCancel,
-  );
+  }) {
+    return ListLayoutModel(
+      preferences: preferences,
+      title: title,
+      initialPosition: Rect.fromLTWH(
+        0.0,
+        0.0,
+        NTWidgetBuilder.getNormalSize(preferences.getInt(PrefKeys.gridSize)) *
+            2,
+        NTWidgetBuilder.getNormalSize(preferences.getInt(PrefKeys.gridSize)) *
+            2,
+      ),
+      children: children,
+      minWidth: 128.0,
+      minHeight: 128.0,
+      dragOutFunctions: (
+        dragOutUpdate: layoutDragOutUpdate,
+        dragOutEnd: layoutDragOutEnd,
+      ),
+      onDragCancel: _layoutContainerOnDragCancel,
+    );
+  }
 
   void addWidget(WidgetContainerModel widget) {
     _widgetModels.add(widget);
@@ -730,9 +709,9 @@ class TabGridModel extends ChangeNotifier {
 
   void removeWidget(WidgetContainerModel widget) {
     widget.removeListener(notifyListeners);
+    widget.disposeModel(deleting: true);
     widget.unSubscribe();
-    widget.softDispose(deleting: true);
-    widget.dispose();
+    widget.forceDispose();
     _widgetModels.remove(widget);
     notifyListeners();
   }
@@ -741,9 +720,9 @@ class TabGridModel extends ChangeNotifier {
   void clearWidgets() {
     for (WidgetContainerModel container in _widgetModels) {
       container.removeListener(notifyListeners);
+      container.disposeModel(deleting: true);
       container.unSubscribe();
-      container.softDispose(deleting: true);
-      container.dispose();
+      container.forceDispose();
     }
     _widgetModels.clear();
     notifyListeners();
@@ -755,8 +734,7 @@ class TabGridModel extends ChangeNotifier {
       builder: (context) => AlertDialog(
         title: const Text('Confirm Clear'),
         content: const Text(
-          'Are you sure you want to remove all widgets from this tab?',
-        ),
+            'Are you sure you want to remove all widgets from this tab?'),
         actions: [
           TextButton(
             onPressed: () {
@@ -796,9 +774,9 @@ class TabGridModel extends ChangeNotifier {
   void onDestroy() {
     for (WidgetContainerModel container in _widgetModels) {
       container.removeListener(notifyListeners);
-      container.softDispose(deleting: true);
+      container.disposeModel(deleting: true);
       container.unSubscribe();
-      container.dispose();
+      container.forceDispose();
     }
     _widgetModels.clear();
   }
@@ -890,14 +868,17 @@ class TabGrid extends StatelessWidget {
         );
 
         if (!container.draggingIntoLayout) {
-          previewOutlines.add(container.getDefaultPreview());
-        } else {
-          LayoutContainerModel? layoutContainer = model.getLayoutAtLocation(
-            container.cursorGlobalLocation,
+          previewOutlines.add(
+            container.getDefaultPreview(),
           );
+        } else {
+          LayoutContainerModel? layoutContainer =
+              model.getLayoutAtLocation(container.cursorGlobalLocation);
 
           if (layoutContainer == null) {
-            previewOutlines.add(container.getDefaultPreview());
+            previewOutlines.add(
+              container.getDefaultPreview(),
+            );
           } else {
             previewOutlines.add(
               Positioned(
@@ -909,11 +890,10 @@ class TabGrid extends StatelessWidget {
                   visible: container.previewVisible,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.white.withAlpha(64),
+                      color: Colors.white.withOpacity(0.25),
                       borderRadius: BorderRadius.circular(
-                        model.preferences.getDouble(PrefKeys.cornerRadius) ??
-                            Defaults.cornerRadius,
-                      ),
+                          model.preferences.getDouble(PrefKeys.cornerRadius) ??
+                              Defaults.cornerRadius),
                       border: Border.all(color: Colors.yellow, width: 5.0),
                     ),
                   ),
@@ -925,36 +905,43 @@ class TabGrid extends StatelessWidget {
       }
 
       dashboardWidgets.add(
-        ContextMenuListener(
+        GestureDetector(
           key: container.key,
-          onContextMenuGesture: (globalPosition, _) {
+          onSecondaryTapUp: (details) {
             if (model.preferences.getBool(PrefKeys.layoutLocked) ??
                 Defaults.layoutLocked) {
               return;
             }
             List<ContextMenuEntry> menuEntries = [
-              MenuHeader(text: container.title ?? '', disableUppercase: true),
+              MenuHeader(
+                text: container.title ?? '',
+                disableUppercase: true,
+              ),
               const MenuDivider(),
               MenuItem(
                 label: 'Edit Properties',
                 icon: Icons.edit_outlined,
-                onSelected: () => container.showEditProperties(context),
+                onSelected: () {
+                  container.showEditProperties(context);
+                },
               ),
               ...container.getContextMenuItems(),
               MenuItem(
-                label: 'Copy',
-                icon: Icons.copy_outlined,
-                onSelected: () => model.copyWidget(container),
-              ),
+                  label: 'Copy',
+                  icon: Icons.copy_outlined,
+                  onSelected: () {
+                    model.copyWidget(container);
+                  }),
               MenuItem(
-                label: 'Remove',
-                icon: Icons.delete_outlined,
-                onSelected: () => model.removeWidget(container),
-              ),
+                  label: 'Remove',
+                  icon: Icons.delete_outlined,
+                  onSelected: () {
+                    model.removeWidget(container);
+                  }),
             ];
 
             ContextMenu contextMenu = ContextMenu(
-              position: globalPosition,
+              position: details.globalPosition,
               borderRadius: BorderRadius.circular(5.0),
               padding: const EdgeInsets.all(4.0),
               entries: menuEntries,
@@ -963,13 +950,15 @@ class TabGrid extends StatelessWidget {
             showContextMenu(
               context,
               contextMenu: contextMenu,
-              routeOptions: MenuRouteOptions(
-                transitionDuration: const Duration(milliseconds: 100),
-                reverseTransitionDuration: Duration.zero,
-                transitionsBuilder:
-                    (context, animation, secondaryAnimation, child) =>
-                        FadeTransition(opacity: animation, child: child),
-              ),
+              transitionDuration: const Duration(milliseconds: 100),
+              reverseTransitionDuration: Duration.zero,
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: child,
+                );
+              },
             );
           },
           child: getWidgetFromModel(container),
@@ -994,33 +983,23 @@ class TabGrid extends StatelessWidget {
       int? gridSize = model.preferences.getInt(PrefKeys.gridSize);
 
       double previewX = DraggableWidgetContainer.snapToGrid(
-        container.draggingRect.left,
-        gridSize,
-      );
+          container.draggingRect.left, gridSize);
       double previewY = DraggableWidgetContainer.snapToGrid(
-        container.draggingRect.top,
-        gridSize,
-      );
+          container.draggingRect.top, gridSize);
 
-      Rect previewLocation = Rect.fromLTWH(
-        previewX,
-        previewY,
-        container.displayRect.width,
-        container.displayRect.height,
-      );
+      Rect previewLocation = Rect.fromLTWH(previewX, previewY,
+          container.displayRect.width, container.displayRect.height);
 
       bool validLocation =
           model.isValidMoveLocation(container, previewLocation) ||
-          model.isValidLayoutLocation(container.cursorGlobalLocation);
+              model.isValidLayoutLocation(container.cursorGlobalLocation);
 
-      Color borderColor = (validLocation)
-          ? Colors.lightGreenAccent.shade400
-          : Colors.red;
+      Color borderColor =
+          (validLocation) ? Colors.lightGreenAccent.shade400 : Colors.red;
 
       if (model.isValidLayoutLocation(container.cursorGlobalLocation)) {
-        LayoutContainerModel layoutContainer = model.getLayoutAtLocation(
-          container.cursorGlobalLocation,
-        )!;
+        LayoutContainerModel layoutContainer =
+            model.getLayoutAtLocation(container.cursorGlobalLocation)!;
 
         previewLocation = layoutContainer.displayRect;
 
@@ -1036,12 +1015,11 @@ class TabGrid extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               color: (validLocation)
-                  ? Colors.white.withAlpha(64)
-                  : Colors.black.withAlpha(26),
+                  ? Colors.white.withOpacity(0.25)
+                  : Colors.black.withOpacity(0.1),
               borderRadius: BorderRadius.circular(
-                model.preferences.getDouble(PrefKeys.cornerRadius) ??
-                    Defaults.cornerRadius,
-              ),
+                  model.preferences.getDouble(PrefKeys.cornerRadius) ??
+                      Defaults.cornerRadius),
               border: Border.all(color: borderColor, width: 5.0),
             ),
           ),
@@ -1049,9 +1027,10 @@ class TabGrid extends StatelessWidget {
       );
     }
 
-    return ContextMenuListener(
+    return GestureDetector(
       behavior: HitTestBehavior.translucent,
-      onContextMenuGesture: (globalPosition, localPosition) {
+      onTap: () {},
+      onSecondaryTapUp: (details) {
         if (model.preferences.getBool(PrefKeys.layoutLocked) ??
             Defaults.layoutLocked) {
           return;
@@ -1076,14 +1055,15 @@ class TabGrid extends StatelessWidget {
               label: 'Paste',
               icon: Icons.paste_outlined,
               onSelected: () {
-                pasteWidget(model, TabGridModel.copyJsonData, localPosition);
+                pasteWidget(
+                    model, TabGridModel.copyJsonData, details.localPosition);
               },
             ),
           );
         }
 
         ContextMenu contextMenu = ContextMenu(
-          position: globalPosition,
+          position: details.globalPosition,
           borderRadius: BorderRadius.circular(5.0),
           padding: const EdgeInsets.all(4.0),
           entries: contextMenuEntries,
@@ -1092,35 +1072,29 @@ class TabGrid extends StatelessWidget {
         showContextMenu(
           context,
           contextMenu: contextMenu,
-          routeOptions: MenuRouteOptions(
-            transitionDuration: const Duration(milliseconds: 100),
-            reverseTransitionDuration: Duration.zero,
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) =>
-                    FadeTransition(opacity: animation, child: child),
-          ),
+          transitionDuration: const Duration(milliseconds: 100),
+          reverseTransitionDuration: Duration.zero,
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(
+              opacity: animation,
+              child: child,
+            );
+          },
         );
       },
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: () {},
-        child: Stack(
-          children: [
-            ...dashboardWidgets,
-            ...previewOutlines,
-            ...draggingWidgets,
-            ...draggingInWidgets,
-          ],
-        ),
+      child: Stack(
+        children: [
+          ...dashboardWidgets,
+          ...previewOutlines,
+          ...draggingWidgets,
+          ...draggingInWidgets,
+        ],
       ),
     );
   }
 
-  void pasteWidget(
-    TabGridModel grid,
-    Map<String, dynamic>? widgetJson,
-    Offset localPosition,
-  ) {
+  void pasteWidget(TabGridModel grid, Map<String, dynamic>? widgetJson,
+      Offset localPosition) {
     if (widgetJson == null) return;
 
     int gridSize =
@@ -1141,19 +1115,15 @@ class TabGrid extends StatelessWidget {
     );
 
     if (grid.isValidLocation(pasteLocation)) {
-      WidgetContainerModel copiedWidget = createWidgetFromJson(
-        grid,
-        widgetJson,
-      );
+      WidgetContainerModel copiedWidget =
+          createWidgetFromJson(grid, widgetJson);
 
       grid.addWidget(copiedWidget);
     }
   }
 
   WidgetContainerModel createWidgetFromJson(
-    TabGridModel grid,
-    Map<String, dynamic> json,
-  ) {
+      TabGridModel grid, Map<String, dynamic> json) {
     if (json['type'] == 'List Layout') {
       return ListLayoutModel.fromJson(
         preferences: grid.preferences,
@@ -1162,14 +1132,14 @@ class TabGrid extends StatelessWidget {
           dragOutUpdate: grid.layoutDragOutUpdate,
           dragOutEnd: grid.layoutDragOutEnd,
         ),
-        ntWidgetBuilder:
-            (preferences, jsonData, enabled, {onJsonLoadingWarning}) =>
-                NTWidgetContainerModel.fromJson(
-                  ntConnection: grid.ntConnection,
-                  jsonData: jsonData,
-                  preferences: preferences,
-                  onJsonLoadingWarning: onJsonLoadingWarning,
-                ),
+        ntWidgetBuilder: (preferences, jsonData, enabled,
+                {onJsonLoadingWarning}) =>
+            NTWidgetContainerModel.fromJson(
+          ntConnection: grid.ntConnection,
+          jsonData: jsonData,
+          preferences: preferences,
+          onJsonLoadingWarning: onJsonLoadingWarning,
+        ),
         onDragCancel: grid._layoutContainerOnDragCancel,
       );
     } else {

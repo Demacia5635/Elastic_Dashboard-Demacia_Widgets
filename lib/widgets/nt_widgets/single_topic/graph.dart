@@ -1,11 +1,10 @@
 import 'dart:async';
-import 'dart:math' show ln10, log, max, min, pow;
 
 import 'package:flutter/material.dart';
 
 import 'package:dot_cast/dot_cast.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
+import 'package:syncfusion_flutter_charts/charts.dart';
 
 import 'package:elastic_dashboard/services/log.dart';
 import 'package:elastic_dashboard/services/nt4_client.dart';
@@ -13,13 +12,6 @@ import 'package:elastic_dashboard/services/text_formatter_builder.dart';
 import 'package:elastic_dashboard/widgets/dialog_widgets/dialog_color_picker.dart';
 import 'package:elastic_dashboard/widgets/dialog_widgets/dialog_text_input.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/nt_widget.dart';
-
-extension on double {
-  String toGraphValueString() {
-    double rounded = double.parse(toStringAsFixed(2));
-    return rounded % 1 == 0 ? rounded.toInt().toString() : rounded.toString();
-  }
-}
 
 class GraphModel extends SingleTopicNTWidgetModel {
   @override
@@ -69,7 +61,7 @@ class GraphModel extends SingleTopicNTWidgetModel {
     refresh();
   }
 
-  List<FlSpot> _graphData = [];
+  List<_GraphPoint> _graphData = [];
   _GraphWidgetGraph? _graphWidget;
 
   GraphModel({
@@ -83,30 +75,26 @@ class GraphModel extends SingleTopicNTWidgetModel {
     double lineWidth = 2.0,
     int maxHistoricalPoints = 2000,
     double maxTime = 2.5 * 60 * 1e6,
-    super.ntStructMeta,
     super.dataType,
     super.period,
-  }) : _timeDisplayed = timeDisplayed,
-       _minValue = minValue,
-       _maxValue = maxValue,
-       _mainColor = mainColor,
-       _lineWidth = lineWidth,
-       super();
+  })  : _timeDisplayed = timeDisplayed,
+        _minValue = minValue,
+        _maxValue = maxValue,
+        _mainColor = mainColor,
+        _lineWidth = lineWidth,
+        super();
 
   GraphModel.fromJson({
     required super.ntConnection,
     required super.preferences,
     required Map<String, dynamic> jsonData,
   }) : super.fromJson(jsonData: jsonData) {
-    _timeDisplayed =
-        tryCast(jsonData['time_displayed']) ??
+    _timeDisplayed = tryCast(jsonData['time_displayed']) ??
         tryCast(jsonData['visibleTime']) ??
         5.0;
     _minValue = tryCast(jsonData['min_value']);
     _maxValue = tryCast(jsonData['max_value']);
-    _mainColor = Color(
-      tryCast(jsonData['color']) ?? Colors.cyan.shade500.toARGB32(),
-    );
+    _mainColor = Color(tryCast(jsonData['color']) ?? Colors.cyan.toARGB32());
     _lineWidth = tryCast(jsonData['line_width']) ?? 2.0;
     enableScrolling = tryCast(jsonData['enable_scrolling']) ?? true;
     maxHistoricalPoints = tryCast(jsonData['max_historical_points']) ?? 2000;
@@ -129,91 +117,93 @@ class GraphModel extends SingleTopicNTWidgetModel {
   }
 
   @override
-  List<Widget> getEditProperties(BuildContext context) => [
-    Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      mainAxisSize: MainAxisSize.max,
-      children: [
-        Flexible(
-          child: DialogColorPicker(
-            onColorPicked: (color) {
-              mainColor = color;
-            },
-            label: 'Graph Color',
-            initialColor: _mainColor,
-            defaultColor: Colors.cyan,
-          ),
-        ),
-        Flexible(
-          child: DialogTextInput(
-            onSubmit: (value) {
-              double? newTime = double.tryParse(value);
-
-              if (newTime == null) {
-                return;
-              }
-              timeDisplayed = newTime;
-            },
-            formatter: TextFormatterBuilder.decimalTextFormatter(),
-            label: 'Time Displayed (Seconds)',
-            initialText: _timeDisplayed.toString(),
-          ),
-        ),
-      ],
-    ),
-    const SizedBox(height: 5),
-    Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      mainAxisSize: MainAxisSize.max,
-      children: [
-        Flexible(
-          child: DialogTextInput(
-            onSubmit: (value) {
-              double? newMinimum = double.tryParse(value);
-              bool refreshGraph = newMinimum != _minValue;
-
-              _minValue = newMinimum;
-
-              if (refreshGraph) {
-                refresh();
-              }
-            },
-            formatter: TextFormatterBuilder.decimalTextFormatter(
-              allowNegative: true,
+  List<Widget> getEditProperties(BuildContext context) {
+    return [
+      // First row: Color and Time Displayed
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        mainAxisSize: MainAxisSize.max,
+        children: [
+          Flexible(
+            child: DialogColorPicker(
+              onColorPicked: (color) {
+                mainColor = color;
+              },
+              label: 'Graph Color',
+              initialColor: _mainColor,
+              defaultColor: Colors.cyan,
             ),
-            label: 'Minimum',
-            initialText: _minValue?.toString(),
-            allowEmptySubmission: true,
           ),
-        ),
-        Flexible(
-          child: DialogTextInput(
-            onSubmit: (value) {
-              double? newMaximum = double.tryParse(value);
-              bool refreshGraph = newMaximum != _maxValue;
+          Flexible(
+            child: DialogTextInput(
+              onSubmit: (value) {
+                double? newTime = double.tryParse(value);
 
-              _maxValue = newMaximum;
-
-              if (refreshGraph) {
-                refresh();
-              }
-            },
-            formatter: TextFormatterBuilder.decimalTextFormatter(
-              allowNegative: true,
+                if (newTime == null) {
+                  return;
+                }
+                timeDisplayed = newTime;
+              },
+              formatter: TextFormatterBuilder.decimalTextFormatter(),
+              label: 'Time Displayed (Seconds)',
+              initialText: _timeDisplayed.toString(),
             ),
-            label: 'Maximum',
-            initialText: _maxValue?.toString(),
-            allowEmptySubmission: true,
           ),
-        ),
-        Flexible(
-          child: DialogTextInput(
-            onSubmit: (value) {
-              double? newWidth = double.tryParse(value);
+        ],
+      ),
+      const SizedBox(height: 5),
 
-              if (newWidth == null || newWidth < 0.01) {
-                return;
-              }
+      // Second row: Min, Max, Line Width
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        mainAxisSize: MainAxisSize.max,
+        children: [
+          Flexible(
+            child: DialogTextInput(
+              onSubmit: (value) {
+                double? newMinimum = double.tryParse(value);
+                bool refreshGraph = newMinimum != _minValue;
+
+                _minValue = newMinimum;
+
+                if (refreshGraph) {
+                  refresh();
+                }
+              },
+              formatter: TextFormatterBuilder.decimalTextFormatter(
+                  allowNegative: true),
+              label: 'Minimum',
+              initialText: _minValue?.toString(),
+              allowEmptySubmission: true,
+            ),
+          ),
+          Flexible(
+            child: DialogTextInput(
+              onSubmit: (value) {
+                double? newMaximum = double.tryParse(value);
+                bool refreshGraph = newMaximum != _maxValue;
+
+                _maxValue = newMaximum;
+
+                if (refreshGraph) {
+                  refresh();
+                }
+              },
+              formatter: TextFormatterBuilder.decimalTextFormatter(
+                  allowNegative: true),
+              label: 'Maximum',
+              initialText: _maxValue?.toString(),
+              allowEmptySubmission: true,
+            ),
+          ),
+          Flexible(
+            child: DialogTextInput(
+              onSubmit: (value) {
+                double? newWidth = double.tryParse(value);
+
+                if (newWidth == null || newWidth < 0.01) {
+                  return;
+                }
 
                 lineWidth = newWidth;
               },
@@ -270,7 +260,7 @@ class GraphWidget extends NTWidget {
   Widget build(BuildContext context) {
     GraphModel model = cast(context.watch<NTWidgetModel>());
 
-    List<FlSpot>? currentGraphData = model._graphWidget?.getCurrentData();
+    List<_GraphPoint>? currentGraphData = model._graphWidget?.getCurrentData();
 
     if (currentGraphData != null) {
       model._graphData = currentGraphData;
@@ -299,9 +289,9 @@ class _GraphWidgetGraph extends StatefulWidget {
   final double timeDisplayed;
   final double lineWidth;
 
-  final List<FlSpot> initialData;
+  final List<_GraphPoint> initialData;
 
-  final List<FlSpot> _currentData;
+  final List<_GraphPoint> _currentData;
 
   final int maxHistoricalPoints;
   final bool enableScrolling;
@@ -324,7 +314,9 @@ class _GraphWidgetGraph extends StatefulWidget {
     this.maxValue,
   }) : _currentData = initialData;
 
-  List<FlSpot> getCurrentData() => _currentData;
+  List<_GraphPoint> getCurrentData() {
+    return _currentData;
+  }
 
   @override
   State<_GraphWidgetGraph> createState() => _GraphWidgetGraphState();
@@ -451,8 +443,8 @@ class _GraphWidgetGraphState extends State<_GraphWidgetGraph>
         _resetGraphData();
       }
 
-          widget.currentData = _graphData;
-        });
+      widget.currentData = _graphData;
+    });
   }
 
   void _updateVisibleData() {
@@ -528,247 +520,27 @@ class _GraphWidgetGraphState extends State<_GraphWidgetGraph>
     _updateVisibleData();
   }
 
-  void _updateVisibleData() {
-    if (_allHistoricalData.isEmpty) return;
-
-    final double currentTime = DateTime.now().microsecondsSinceEpoch.toDouble();
-    final double timeWindow = widget.timeDisplayed * 1e6;
-
-    double windowEndTime;
-    if (_isLiveMode) {
-      windowEndTime = currentTime;
-    } else {
-      // Calculate the end time based on scroll position
-      final double oldestTime = _allHistoricalData.first.x;
-      final double newestTime = _allHistoricalData.last.x;
-      final double totalTimeSpan = newestTime - oldestTime;
-
-      if (totalTimeSpan <= timeWindow) {
-        windowEndTime = newestTime;
-      } else {
-        windowEndTime =
-            newestTime - (_timeScrollPosition * (totalTimeSpan - timeWindow));
-      }
-    }
-
-    final double windowStartTime = windowEndTime - timeWindow;
-
-    // Filter data within the time window
-    final List<_GraphPoint> filteredData = _allHistoricalData
-        .where(
-            (point) => point.x >= windowStartTime && point.x <= windowEndTime)
-        .toList();
-
-    if (filteredData.isEmpty) return;
-
-    final List<_GraphPoint> displayData = List.of(filteredData);
-
-    if (displayData.first.x > windowStartTime) {
-      displayData.insert(
-          0,
-          _GraphPoint(
-            x: windowStartTime,
-            y: displayData.first.y,
-          ));
-    }
-
-    if (displayData.last.x < windowEndTime) {
-      displayData.add(_GraphPoint(
-        x: windowEndTime,
-        y: displayData.last.y,
-      ));
-    }
-
-    setState(() {
-      _graphData = displayData;
-    });
-  }
-
-  void _onTimeScrollChanged(double value) {
-    setState(() {
-      _timeScrollPosition = value;
-      _isLiveMode = value == 0.0;
-    });
-
-    _updateVisibleData();
-  }
-
-  void _goToLiveMode() {
-    setState(() {
-      _timeScrollPosition = 0.0;
-      _isLiveMode = true;
-    });
-    _updateVisibleData();
-  }
-
-  (double, double) getValueRange() {
-    if (_graphData.isEmpty) {
-      return (widget.minValue ?? 0.0, widget.maxValue ?? 1.0);
-    }
-
-    double minData = _graphData.first.y;
-    double maxData = _graphData.first.y;
-
-    for (final spot in _graphData.skip(1)) {
-      minData = min(minData, spot.y);
-      maxData = max(maxData, spot.y);
-    }
-
-    return (minData, maxData);
-  }
-
-  ({double min, double max, double interval}) _calculateAxisBounds(
-    BuildContext context,
-    double graphHeight,
-  ) {
-    final style = DefaultTextStyle.of(context).style;
-
-    final textPainter = TextPainter(
-      text: TextSpan(text: '0', style: style),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    final double roughLabelHeight = textPainter.height * 1.5;
-    final int desiredTickCount = max(
-      2,
-      (graphHeight / roughLabelHeight).floor(),
-    );
-
-    double? minY = widget.minValue;
-    double? maxY = widget.maxValue;
-
-    if (minY != null && maxY != null) {
-      final niceBounds = _calculateNiceBounds(minY, maxY, desiredTickCount);
-      return (
-        min: niceBounds.min,
-        max: niceBounds.max,
-        interval: niceBounds.interval,
-      );
-    }
-
-    final (minData, maxData) = getValueRange();
-
-    double calculatedMin;
-    double calculatedMax;
-
-    if (minData == maxData) {
-      // Snap either min or max to 0
-      if (minData >= 0) {
-        calculatedMin = 0.0;
-        calculatedMax = (minData == 0) ? 1.0 : minData + minData.abs() * 0.05;
-      } else {
-        calculatedMax = 0.0;
-        calculatedMin = minData - minData.abs() * 0.05;
-      }
-    } else {
-      final double range = maxData - minData;
-
-      calculatedMax = maxData + range * 0.05;
-
-      const double zeroMarginFraction = 0.05;
-      final bool isMinCloseToZero =
-          minData >= 0 && maxData > 0 && minData < maxData * zeroMarginFraction;
-
-      if (isMinCloseToZero) {
-        calculatedMin = 0.0;
-      } else {
-        calculatedMin = minData - range * 0.05;
-      }
-    }
-
-    minY ??= calculatedMin;
-    maxY ??= calculatedMax;
-
-    if (minY >= maxY) {
-      maxY = minY + 1;
-    }
-
-    final niceBounds = _calculateNiceBounds(minY, maxY, desiredTickCount);
-    return (
-      min: niceBounds.min,
-      max: niceBounds.max,
-      interval: niceBounds.interval,
-    );
-  }
-
-  ({double min, double max, double interval}) _calculateNiceBounds(
-    double min,
-    double max,
-    int tickCount,
-  ) {
-    if (tickCount < 2) {
-      return (min: min, max: max, interval: max - min);
-    }
-
-    if (min == max) {
-      return (min: min - 1, max: max + 1, interval: 0.5);
-    }
-
-    final double range = max - min;
-    double interval = range / (tickCount - 1);
-
-    if (interval == 0) {
-      return (min: min, max: max, interval: 0.5);
-    }
-
-    // Math taken from https://wiki.tcl-lang.org/page/Chart+generation+support
-    final double exponent = pow(
-      10,
-      -(log(interval.abs()) / ln10).floor(),
-    ).toDouble();
-    final double niceIntervalSize = (interval * exponent).roundToDouble();
-
-    double niceInterval;
-    if (niceIntervalSize < 1.5) {
-      niceInterval = 1.0;
-    } else if (niceIntervalSize < 3.0) {
-      niceInterval = 2.0;
-    } else if (niceIntervalSize < 7.0) {
-      niceInterval = 5.0;
-    } else {
-      niceInterval = 10.0;
-    }
-    niceInterval /= exponent;
-
-    double niceMin = (min / niceInterval).floor() * niceInterval;
-    double niceMax = (max / niceInterval).ceil() * niceInterval;
-
-    return (min: niceMin, max: niceMax, interval: niceInterval);
-  }
-
-  double _calculateReservedSize(
-    BuildContext context,
-    double min,
-    double max,
-    double interval,
-  ) {
-    final style = DefaultTextStyle.of(context).style;
-    if (interval <= 0) {
-      return style.fontSize ?? 14;
-    }
-
-    final TextPainter textPainter = TextPainter(
-      textDirection: TextDirection.ltr,
-    );
-
-    double maxWidth = 0;
-
-    final int stepCount = ((max - min) / interval).round();
-
-    for (int i = 0; i <= stepCount; i++) {
-      final double value = min + i * interval;
-
-      final String label = value.toGraphValueString();
-
-      textPainter.text = TextSpan(text: label, style: style);
-      textPainter.layout();
-
-      if (textPainter.width > maxWidth) {
-        maxWidth = textPainter.width;
-      }
-    }
-
-    return maxWidth;
+  List<FastLineSeries<_GraphPoint, num>> _getChartData() {
+    return <FastLineSeries<_GraphPoint, num>>[
+      FastLineSeries<_GraphPoint, num>(
+        animationDuration: 0.0,
+        animationDelay: 0.0,
+        sortingOrder: SortingOrder.ascending,
+        onRendererCreated: (controller) => _seriesController = controller,
+        color: widget.mainColor,
+        width: widget.lineWidth,
+        dataSource: _graphData,
+        xValueMapper: (value, index) {
+          return value.x;
+        },
+        yValueMapper: (value, index) {
+          return value.y;
+        },
+        sortFieldValueMapper: (datum, index) {
+          return datum.x;
+        },
+      ),
+    ];
   }
 
   @override

@@ -88,15 +88,14 @@
             "properties": {
               "topic": "/SmartDashboard/Field",
               "period": 0.033,
-              "field_game": "Rebuilt",
+              "field_game": "Reefscape",
               "robot_width": 0.82,
               "robot_length": 1.0,
               "show_other_objects": true,
               "show_trajectories": true,
               "field_rotation": 0.0,
               "robot_color": 4294198070,
-              "trajectory_color": 4294967295,
-              "show_robot_outside_widget": true
+              "trajectory_color": 4294967295
             }
           },
           {
@@ -274,8 +273,7 @@
             "properties": {
               "topic": "/SmartDashboard/Auto Path",
               "period": 0.033,
-              "show_type": true,
-              "maximize_button_space": true
+              "show_type": true
             }
           },
           {

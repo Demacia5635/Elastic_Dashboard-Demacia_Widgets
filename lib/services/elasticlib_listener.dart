@@ -9,15 +9,8 @@ import 'package:elastic_dashboard/services/nt_connection.dart';
 class ElasticLibListener {
   bool _alertFirstRun = true;
   final NTConnection ntConnection;
-  final Function(
-    String title,
-    String description,
-    Icon icon,
-    Duration displayTime,
-    double width,
-    double? height,
-  )
-  onNotification;
+  final Function(String title, String description, Icon icon,
+      Duration displayTime, double width, double? height) onNotification;
   final Function(Object tabIdentifier) onTabSelected;
 
   ElasticLibListener({
@@ -27,10 +20,8 @@ class ElasticLibListener {
   });
 
   void listen() {
-    var notifications = ntConnection.subscribeAll(
-      '/Elastic/RobotNotifications',
-      0.2,
-    );
+    var notifications =
+        ntConnection.subscribeAll('/Elastic/RobotNotifications', 0.2);
     notifications.listen((alertData, alertTimestamp) {
       if (alertData == null) {
         return;
@@ -83,9 +74,8 @@ class ElasticLibListener {
     }
 
     if (data.containsKey('displayTime')) {
-      displayTime = Duration(
-        milliseconds: (tryCast(data['displayTime']) ?? 3000),
-      );
+      displayTime =
+          Duration(milliseconds: (tryCast(data['displayTime']) ?? 3000));
     }
 
     if (data.containsKey('width')) {
@@ -104,9 +94,15 @@ class ElasticLibListener {
     if (data['level'] == 'INFO') {
       icon = const Icon(Icons.info);
     } else if (data['level'] == 'WARNING') {
-      icon = const Icon(Icons.warning_amber, color: Colors.orange);
+      icon = const Icon(
+        Icons.warning_amber,
+        color: Colors.orange,
+      );
     } else if (data['level'] == 'ERROR') {
-      icon = const Icon(Icons.error, color: Colors.red);
+      icon = const Icon(
+        Icons.error,
+        color: Colors.red,
+      );
     } else {
       icon = const Icon(Icons.question_mark);
     }

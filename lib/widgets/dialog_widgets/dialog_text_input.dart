@@ -35,7 +35,7 @@ class _DialogTextInputState extends State<DialogTextInput> {
 
   late final TextEditingController textEditingController =
       widget.textEditingController ??
-      TextEditingController(text: widget.initialText);
+          TextEditingController(text: widget.initialText);
 
   @override
   void didUpdateWidget(DialogTextInput oldWidget) {
@@ -46,49 +46,50 @@ class _DialogTextInputState extends State<DialogTextInput> {
   }
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(4.0),
-    child: Focus(
-      onFocusChange: (value) {
-        if (focused && !value) {
-          String textValue = textEditingController.text;
-          if (textValue.isNotEmpty || widget.allowEmptySubmission) {
-            widget.onSubmit.call(textValue);
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(4.0),
+      child: Focus(
+        onFocusChange: (value) {
+          if (focused && !value) {
+            String textValue = textEditingController.text;
+            if (textValue.isNotEmpty || widget.allowEmptySubmission) {
+              widget.onSubmit.call(textValue);
+            }
           }
-        }
-        focused = value;
-      },
-      child: TextField(
-        autofocus: widget.autoFocus,
-        enabled: widget.enabled,
-        onChanged: (value) {
-          if (widget.updateOnChanged &&
-              (value.isNotEmpty || widget.allowEmptySubmission)) {
-            widget.onSubmit.call(value);
-          }
+          focused = value;
         },
-        onSubmitted: (value) {
-          if (value.isNotEmpty || widget.allowEmptySubmission) {
-            widget.onSubmit.call(value);
-            focused = false;
-          }
-        },
-        onTapOutside: (_) {
-          if (!focused) {
-            return;
-          }
-          FocusManager.instance.primaryFocus?.unfocus();
-        },
-        controller: textEditingController,
-        inputFormatters: (widget.formatter != null)
-            ? [widget.formatter!]
-            : null,
-        decoration: InputDecoration(
-          contentPadding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-          labelText: widget.label,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
+        child: TextField(
+          autofocus: widget.autoFocus,
+          enabled: widget.enabled,
+          onChanged: (value) {
+            if (widget.updateOnChanged &&
+                (value.isNotEmpty || widget.allowEmptySubmission)) {
+              // widget.onSubmit.call(value);
+            }
+          },
+          onSubmitted: (value) {
+            if (value.isNotEmpty || widget.allowEmptySubmission) {
+              widget.onSubmit.call(value);
+              focused = false;
+            }
+          },
+          onTapOutside: (_) {
+            if (!focused) {
+              return;
+            }
+            FocusManager.instance.primaryFocus?.unfocus();
+          },
+          controller: textEditingController,
+          inputFormatters:
+              (widget.formatter != null) ? [widget.formatter!] : null,
+          decoration: InputDecoration(
+            contentPadding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+            labelText: widget.label,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(4)),
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

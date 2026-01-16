@@ -22,10 +22,7 @@ class ToggleSwitch extends NTWidget {
         return Switch(
           value: value,
           onChanged: (bool value) {
-            if (model.ntStructMeta != null) return;
-
-            bool publishTopic =
-                model.ntTopic == null ||
+            bool publishTopic = model.ntTopic == null ||
                 !model.ntConnection.isTopicPublished(model.ntTopic);
 
             model.createTopicIfNull();

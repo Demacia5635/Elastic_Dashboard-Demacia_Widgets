@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
-import 'package:elastic_dashboard/util/test_utils.dart';
-
 class CustomLoadingIndicator extends CircularProgressIndicator {
-  CustomLoadingIndicator({super.key}) : super(value: (isUnitTest ? 0 : null));
+  CustomLoadingIndicator({super.key})
+      : super(
+            value:
+                (Platform.environment.containsKey('FLUTTER_TEST') ? 0 : null));
 }
