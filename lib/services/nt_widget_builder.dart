@@ -1,6 +1,5 @@
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/LookUpTable.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/chassis_speed.dart';
-import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/multigraph.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/vector.dart';
 import 'package:flutter/material.dart';
 
@@ -200,17 +199,6 @@ class NTWidgetBuilder {
       minWidth: _normalSize * 2,
       defaultHeight: 2,
       defaultWidth: 2,
-    );
-
-    register(
-      name: MultiGraphWidget.widgetType,
-      model: MultiGraphModel.new,
-      widget: MultiGraphWidget.new,
-      fromJson: MultiGraphModel.fromJson,
-      minWidth: _normalSize * 2,
-      minHeight: _normalSize * 2,
-      defaultWidth: 2,
-      defaultHeight: 2,
     );
 
     register(

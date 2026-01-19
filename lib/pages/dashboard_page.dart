@@ -592,36 +592,18 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
 
       final initialWidgets = rec['initialWidgets'] as Map<String, dynamic>?;
 
-      if (initialWidgets != null) {
-        final Set<String> topicsToCreate = {};
+      if (initialWidgets != null && widgetTypes.isNotEmpty) {
+        for (final entry in widgetTypes.entries) {
+          final topicName = entry.key;
+          final widgetType = entry.value;
 
-        // 🟢 ONLY collect topics that have a .type entry
-        initialWidgets.forEach((topicName, payload) {
-          if (topicName.endsWith('/.type')) {
-            // Extract base topic name
-            final baseTopic = topicName.substring(0, topicName.length - 6);
-            final widgetTypeValue = payload['value'] as String?;
-
-            if (widgetTypeValue != null) {
-              topicsToCreate.add(baseTopic);
-              print(
-                  '✅ Will create widget for: $baseTopic with type: $widgetTypeValue');
-            }
-          }
-        });
-
-        // Now create widgets only for the parent topics (those with .type)
-        for (final topicName in topicsToCreate) {
-          final widgetType = widgetTypes[topicName];
-          if (widgetType == null) continue;
-
-          // Get the initial value from the parent topic (not subtopics)
+          // Get the initial value from initialWidgets
           final topicData = initialWidgets[topicName];
           final value = topicData?['value'];
 
-          print('🟢 Creating widget: $topicName, Widget type: $widgetType');
+          print(
+              '🟢 Creating widget: $topicName, Widget type: $widgetType, Initial value: $value');
 
-          // Call ensureWidgetExists for this topic
           widget.ntConnection.ensureWidgetExists(
             topicName,
             widgetType,
@@ -724,10 +706,10 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
 
   String _formatTimestamp(int microSeconds) {
     int elapsedUs = (microSeconds - recordingStartTime);
-    print('recording start time: $recordingStartTime');
-    print('test time: $test');
-    print('end time: $recordingEndTime');
-    print('Elapsed us: $elapsedUs');
+    // print('recording start time: $recordingStartTime');
+    // print('test time: $test');
+    // print('end time: $recordingEndTime');
+    // print('Elapsed us: $elapsedUs');
 
     if (elapsedUs < 0) {
       return "00:00";
@@ -737,8 +719,8 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
     int minutes = totalSeconds ~/ 60;
     int seconds = totalSeconds % 60;
 
-    print(
-        'Time: ${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}');
+    // print(
+    //     'Time: ${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}');
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
@@ -760,7 +742,6 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
       }
     }
 
-    // Clear the playback cache
     lastSentValues.clear();
 
     setState(() {});
