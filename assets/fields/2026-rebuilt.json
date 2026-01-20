@@ -4,12 +4,12 @@
   "field-image": "assets/fields/2026-frc-field.png",
   "field-corners": {
      "top-left": [
-      524,
-      94
+      0,
+      0
     ],
     "bottom-right": [
-      3378,
-      1490
+      599,
+      314
     ]
   },
   "field-size": [
@@ -17,3 +17,6 @@
     8.069
   ]
 }
+
+
+
