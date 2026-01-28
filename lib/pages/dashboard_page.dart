@@ -2,9 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+//import 'package:elastic_dashboard/services/nt4_client.dart';
+import 'package:elastic_dashboard/services/nt4_client.dart';
+import 'package:elastic_dashboard/services/nt_widget_builder.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'package:collection/collection.dart';
 import 'package:dot_cast/dot_cast.dart';
@@ -110,7 +115,24 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
   late final UpdateChecker _updateChecker;
   late final ElasticLayoutDownloader _layoutDownloader;
 
+  // playback
+  bool isPlaying = false;
+  int playbackIndex = 0;
+  List<Map<String, dynamic>> playbackData = [];
+
   bool _seenShuffleboardWarning = false;
+  bool isRecording = false;
+  List<Map<String, dynamic>> recorder = [];
+  Timer? timer;
+  final Map<String, NT4Subscription> _recordingSubscriptions = {};
+  Map<String, String> widgetTypes = {};
+  final Map<String, dynamic> lastSentValues = {};
+  final double playbackSpeed = 0.5;
+  int recordingStartTime = 0;
+  int test = 0;
+  int recordingEndTime = 0;
+  int millisec = 0;
+  bool needToRefreshLiveValues = false;
 
   final List<TabData> _tabData = [];
 
@@ -339,6 +361,462 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
             notifyIfError: false,
           ));
     }
+  }
+
+  Future<String> get _localPath async {
+    final directory = await getApplicationDocumentsDirectory();
+    return directory.path;
+  }
+
+  Future<File> get _localFile async {
+    final path = await _localPath;
+    final timeStamp = DateTime.now().millisecondsSinceEpoch;
+    return File('$path/recording$timeStamp.json');
+  }
+
+  void _stopRecording() {
+    print("Total Microseconds: ${recordingEndTime - recordingStartTime}");
+    print(
+        "Total Seconds: ${(recordingEndTime - recordingStartTime) / 1000000}");
+    for (var sub in _recordingSubscriptions.values) {
+      widget.ntConnection.unSubscribe(sub);
+    }
+    _recordingSubscriptions.clear();
+
+    widget.ntConnection.removeTopicAnnounceListener(_onNewTopicDuringRecording);
+  }
+
+  Future<void> _saveRecording() async {
+    if (recorder.isEmpty) {
+      print('No data to save');
+      _showWarningNotification(
+        title: 'No Recording Data',
+        message: 'No data to save',
+        width: 300,
+      );
+      return;
+    }
+
+    try {
+      final file = await _localFile;
+      final initialWidgets = <String, Map<String, dynamic>>{};
+
+      Map<int, NT4Topic> allTopics = widget.ntConnection.announcedTopics();
+
+      for (var topic in allTopics.values) {
+        final lastValue = widget.ntConnection.getLastAnnouncedValue(topic.name);
+        initialWidgets[topic.name] = {
+          'type': topic.type,
+          'value': lastValue,
+        };
+      }
+
+      final Map<int, Map<String, dynamic>> grouped = {};
+
+      for (final entry in recorder) {
+        final ts = entry['timestamp'] as int;
+        final topic = entry['topic'] as String;
+        final value = entry['value'];
+        final type = entry['type'];
+
+        grouped.putIfAbsent(
+            ts,
+            () => {
+                  'timestamp': ts,
+                  'topics': <String, dynamic>{},
+                });
+
+        (grouped[ts]!['topics'] as Map<String, dynamic>)[topic] = {
+          'value': value,
+          'type': type,
+        };
+      }
+
+      final frames = grouped.values.toList()
+        ..sort(
+            (a, b) => (a['timestamp'] as int).compareTo(b['timestamp'] as int));
+
+      // CRITICAL FIX: Extract actual start/end from the data frames
+      final start = frames.first['timestamp'] as int;
+      final end = frames.last['timestamp'] as int;
+
+      // Update class variables so playback immediately recognizes the duration
+      recordingStartTime = start;
+      recordingEndTime = end;
+
+      final jsonString = JsonEncoder.withIndent('  ').convert({
+        'initialWidgets': initialWidgets,
+        'recording_start': start,
+        'recording_end': end,
+        'sample_count': recorder.length,
+        'unique_timestamps': frames.length,
+        'data': frames,
+      });
+
+      await file.writeAsString(jsonString);
+      print('Recording saved to: ${file.path}');
+
+      _showInfoNotification(
+        title: 'Recording Saved',
+        message: 'Recording saved to: ${file.path}',
+        width: 400,
+      );
+    } catch (e) {
+      print('Error saving recording: $e');
+      _showErrorNotification(
+        title: 'Save Failed',
+        message: 'Error saving recording: $e',
+        width: 400,
+      );
+    }
+  }
+
+  void _record() async {
+    if (widget.ntConnection.isInPlaybackMode) {
+      _showWarningNotification(
+        title: 'Cannot Record',
+        message: 'Cannot start recording during playback',
+        width: 300,
+      );
+      return;
+    }
+
+    isRecording = !isRecording;
+
+    if (isRecording) {
+      print('Started recording');
+      recorder.clear();
+      // Reset so the first packet sets the baseline
+      recordingStartTime = 0;
+      _startRecording();
+    } else {
+      print('Stopped recording');
+      _stopRecording();
+      await _saveRecording();
+    }
+
+    setState(() {});
+  }
+
+  void _onNewTopicDuringRecording(NT4Topic topic) {
+    if (!isRecording || _recordingSubscriptions.containsKey(topic.name)) {
+      return;
+    }
+
+    NT4Subscription sub = widget.ntConnection.subscribe(topic.name, 0.05);
+    sub.listen((value, timestamp) {
+      if (isRecording) {
+        if (recordingStartTime == 0) {
+          recordingStartTime = timestamp;
+        }
+        print('Recording timestamp in New Topic: $timestamp');
+        print('Recording startTime in New Topic: $recordingStartTime');
+        recorder.add({
+          'timestamp': timestamp,
+          'server_time': widget.ntConnection.serverTime,
+          'topic': topic.name,
+          'value': value,
+          'type': topic.type,
+        });
+      }
+    });
+
+    _recordingSubscriptions[topic.name] = sub;
+  }
+
+  void _startRecording() {
+    timer = Timer.periodic(const Duration(milliseconds: 1), (timer) {
+      millisec++;
+      // print('Recording...'); // Optional: keep if you want to see the count
+    });
+
+    Map<int, NT4Topic> topics = widget.ntConnection.announcedTopics();
+
+    for (var topic in topics.values) {
+      NT4Subscription sub = widget.ntConnection.subscribe(topic.name, 0.05);
+
+      sub.listen((value, timestamp) {
+        if (isRecording) {
+          // Fix: Sync the class variable to the robot's microsecond clock on the first packet
+          if (recordingStartTime == 0) {
+            recordingStartTime = timestamp;
+            print('Recording startTime synced to: $recordingStartTime');
+          }
+
+          recorder.add({
+            'timestamp': timestamp,
+            'server_time': widget.ntConnection.serverTime,
+            'topic': topic.name,
+            'value': value,
+            'type': topic.type,
+          });
+        }
+      });
+
+      _recordingSubscriptions[topic.name] = sub;
+    }
+
+    widget.ntConnection.addTopicAnnounceListener(_onNewTopicDuringRecording);
+  }
+
+// ========== PLAYBACK ==========
+
+  Future<void> loadPlaybackDataFromFile(String filePath) async {
+    try {
+      print('Loading playback data from $filePath');
+      final file = File(filePath);
+      final jsonString = await file.readAsString();
+      final Map<String, dynamic> rec = json.decode(jsonString);
+
+      final raw = rec['data'] as List<dynamic>;
+
+      playbackData = raw
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList()
+        ..sort(
+            (a, b) => (a['timestamp'] as int).compareTo(b['timestamp'] as int));
+
+      if (playbackData.isNotEmpty) {
+        recordingStartTime = playbackData.first['timestamp'] as int;
+        recordingEndTime = playbackData.last['timestamp'] as int;
+      }
+
+      recordingStartTime = rec['recording_start'] as int? ??
+          (playbackData.isNotEmpty
+              ? playbackData.first['timestamp'] as int
+              : 0);
+      recordingEndTime = rec['recording_end'] as int? ??
+          (playbackData.isNotEmpty ? playbackData.last['timestamp'] as int : 0);
+
+      preScanRecording(playbackData);
+
+      final initialWidgets = rec['initialWidgets'] as Map<String, dynamic>?;
+
+      if (initialWidgets != null && widgetTypes.isNotEmpty) {
+        for (final entry in widgetTypes.entries) {
+          final topicName = entry.key;
+          final widgetType = entry.value;
+
+          // Get the initial value from initialWidgets
+          final topicData = initialWidgets[topicName];
+          final value = topicData?['value'];
+
+          print(
+              '🟢 Creating widget: $topicName, Widget type: $widgetType, Initial value: $value');
+
+          widget.ntConnection.ensureWidgetExists(
+            topicName,
+            widgetType,
+            value,
+          );
+        }
+      }
+
+      playbackIndex = 0;
+
+      _showInfoNotification(
+        title: 'Playback Loaded',
+        message: 'Loaded ${playbackData.length} frames',
+        width: 300,
+      );
+
+      setState(() {});
+    } catch (e) {
+      print('Error loading playback: $e');
+      _showErrorNotification(
+        title: 'Load Failed',
+        message: 'Error loading playback: $e',
+        width: 400,
+      );
+    }
+  }
+
+  Future<void> startPlayback() async {
+    if (playbackData.isEmpty) {
+      print("No playback data loaded");
+      _showWarningNotification(
+        title: 'No Playback Data',
+        message: 'Please load a recording file first',
+        width: 300,
+      );
+      return;
+    }
+
+    if (isPlaying) return;
+
+    widget.ntConnection.enterPlaybackMode();
+
+    setState(() => isPlaying = true);
+
+    try {
+      while (isPlaying && playbackIndex < playbackData.length) {
+        final frame = playbackData[playbackIndex];
+
+        updateWidgetsFromPlayback(frame);
+
+        if (playbackIndex + 1 < playbackData.length) {
+          final now = frame['timestamp'] as int; // µs
+          final next = playbackData[playbackIndex + 1]['timestamp'] as int;
+
+          int deltaUs = next - now;
+          if (deltaUs < 0) deltaUs = 0;
+
+          if (deltaUs > 2 * 1000 * 1000) deltaUs = 2 * 1000 * 1000;
+
+          await Future.delayed(Duration(microseconds: deltaUs));
+        }
+
+        playbackIndex++;
+        setState(() {}); // Update slider position
+      }
+
+      if (playbackIndex >= playbackData.length) {
+        print("Playback completed");
+        _showInfoNotification(
+          title: 'Playback Complete',
+          message: 'Playback finished',
+          width: 300,
+        );
+      }
+    } finally {
+      setState(() => isPlaying = false);
+
+      if (playbackIndex >= playbackData.length) {
+        widget.ntConnection.exitPlaybackMode();
+        _refreshLiveValues();
+      }
+    }
+  }
+
+  void pausePlayback() {
+    setState(() => isPlaying = false);
+  }
+
+  void seekPlayback(int newIndex) {
+    if (playbackData.isEmpty) return;
+
+    playbackIndex = newIndex.clamp(0, playbackData.length - 1);
+
+    if (playbackIndex < playbackData.length) {
+      updateWidgetsFromPlayback(playbackData[playbackIndex]);
+    }
+
+    setState(() {});
+  }
+
+  String _formatTimestamp(int microSeconds) {
+    int elapsedUs = (microSeconds - recordingStartTime);
+    // print('recording start time: $recordingStartTime');
+    // print('test time: $test');
+    // print('end time: $recordingEndTime');
+    // print('Elapsed us: $elapsedUs');
+
+    if (elapsedUs < 0) {
+      return "00:00";
+    }
+
+    int totalSeconds = elapsedUs ~/ 1000000;
+    int minutes = totalSeconds ~/ 60;
+    int seconds = totalSeconds % 60;
+
+    // print(
+    //     'Time: ${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}');
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  void _refreshLiveValues() {
+    Map<int, NT4Topic> allTopics = widget.ntConnection.announcedTopics();
+
+    for (var topic in allTopics.values) {
+      final currentValue =
+          widget.ntConnection.getLastAnnouncedValue(topic.name);
+
+      if (currentValue != null) {
+        // Force update the widget with the current live value
+        widget.ntConnection.sendPlaybackValue(
+          topic.name,
+          currentValue,
+          topic.type,
+          widgetTypes[topic.name] ?? "Text View",
+        );
+      }
+    }
+
+    lastSentValues.clear();
+
+    setState(() {});
+  }
+
+  void preScanRecording(List<Map<String, dynamic>> rows) {
+    final Map<String, String> detectedWidgetTypes = {};
+
+    for (final row in rows) {
+      final topics = row['topics'] as Map<String, dynamic>?;
+      if (topics == null) continue;
+
+      topics.forEach((topicName, payload) {
+        if (topicName.endsWith('/.type')) {
+          final base = topicName.substring(0, topicName.length - 6);
+          final widgetTypeValue = payload['value'] as String;
+          detectedWidgetTypes[base] = widgetTypeValue;
+          print('✅ Found widget type: $base = $widgetTypeValue');
+        }
+      });
+    }
+
+    widgetTypes = detectedWidgetTypes;
+    print(
+        '📊 PreScan complete. Found ${detectedWidgetTypes.length} widget types');
+    print('Widget types map: $detectedWidgetTypes');
+  }
+
+  Future<void> updateWidgetsFromPlayback(Map<String, dynamic> row) async {
+    final topics = row['topics'] as Map<String, dynamic>?;
+    if (topics == null) return;
+
+    final List<_PlaybackEntry> buffer = [];
+
+    for (final entry in topics.entries) {
+      final topicName = entry.key;
+
+      if (topicName.endsWith('/.type')) continue;
+      final value = entry.value['value'];
+      final type = entry.value['type'] ?? '';
+      final widgetType = widgetTypes[topicName] ?? "Text View";
+
+      if (lastSentValues[topicName] != value) {
+        lastSentValues[topicName] = value;
+
+        buffer.add(
+          _PlaybackEntry(
+            topic: topicName,
+            value: value,
+            type: type,
+            widgetType: widgetType,
+          ),
+        );
+      }
+    }
+
+    for (final entry in buffer) {
+      widget.ntConnection.sendPlaybackValue(
+        entry.topic,
+        entry.value,
+        entry.type,
+        entry.widgetType,
+      );
+    }
+  }
+
+  Future<String?> pickFile() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+    );
+    if (result != null && result.files.single.path != null) {
+      return result.files.single.path!;
+    }
+    return null;
   }
 
   @override
@@ -2068,6 +2546,83 @@ class _DashboardPageState extends State<DashboardPage> with WindowListener {
           'Help',
         ),
       ),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          if (playbackData.isNotEmpty)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: Row(
+                  children: [
+                    Text(
+                      _formatTimestamp(playbackIndex < playbackData.length
+                          ? playbackData[playbackIndex]['timestamp'] as int
+                          : recordingEndTime),
+                      style: TextStyle(fontSize: 11),
+                    ),
+                    Expanded(
+                      child: Slider(
+                        value: playbackIndex
+                            .toDouble()
+                            .clamp(0, (playbackData.length - 1).toDouble()),
+                        min: 0,
+                        max: (playbackData.length - 1).toDouble(),
+                        divisions: playbackData.length > 1
+                            ? playbackData.length - 1
+                            : 1,
+                        onChanged: (value) {
+                          if (!isPlaying) {
+                            seekPlayback(value.toInt());
+                          }
+                        },
+                        onChangeStart: (value) {
+                          if (isPlaying) {
+                            pausePlayback();
+                          }
+                        },
+                      ),
+                    ),
+                    Text(
+                      _formatTimestamp(recordingEndTime),
+                      style: TextStyle(fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          IconButton(
+            onPressed: () {
+              setState(() {
+                _record();
+              });
+            },
+            icon: isRecording
+                ? Icon(Icons.stop)
+                : Icon(Icons.emergency_recording),
+          ),
+          IconButton(
+            icon: isPlaying ? Icon(Icons.pause) : Icon(Icons.play_arrow),
+            onPressed: () {
+              if (isPlaying) {
+                pausePlayback();
+              } else if (playbackData.isNotEmpty) {
+                startPlayback();
+              }
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.folder_open),
+            tooltip: 'Open Recording File',
+            onPressed: () async {
+              String? path = await pickFile();
+              if (path != null) {
+                await loadPlaybackDataFromFile(path);
+              }
+            },
+          ),
+        ],
+      ),
     ];
 
     MenuBar menuBar = MenuBar(
@@ -2535,4 +3090,18 @@ class _AddWidgetDialogState extends State<_AddWidgetDialog> {
       ),
     );
   }
+}
+
+class _PlaybackEntry {
+  final String topic;
+  final dynamic value;
+  final String type;
+  final String widgetType;
+
+  _PlaybackEntry({
+    required this.topic,
+    required this.value,
+    required this.type,
+    required this.widgetType,
+  });
 }

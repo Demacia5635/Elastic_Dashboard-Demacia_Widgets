@@ -50,6 +50,32 @@ class NT4TypeStr {
   static const kIntArr = 'int[]';
   static const kFloat32Arr = 'float[]';
   static const kStringArr = 'string[]';
+
+  static String fromValue(dynamic v) {
+    switch (v) {
+      case const (int):
+        return 'int';
+      case const (double):
+        return 'double';
+      case const (bool):
+        return 'boolean';
+      case const (String):
+        return 'string';
+      case const (List<int>):
+        return 'int[]';
+      case const (Uint8List):
+        return 'raw';
+      case const (List<double>):
+        return 'double[]';
+      case const (List<bool>):
+        return 'boolean[]';
+      case const (List<String>):
+        return 'string[]';
+
+      default:
+        return 'string';
+    }
+  }
 }
 
 class NT4Subscription extends ValueNotifier<Object?> {
@@ -125,7 +151,11 @@ class NT4Subscription extends ValueNotifier<Object?> {
     }
   }
 
-  void updateValue(Object? value, int timestamp) {
+  /**Updates value if not in playback mode */
+  void updateValue(Object? value, int timestamp, {bool isPlayback = false}) {
+    if (NT4Client._pauseLiveUpdates && !isPlayback) {
+      return;
+    }
     logger.trace(
         'Updating value for subscription: $this - Value: $value, Time: $timestamp');
     for (var listener in _listeners) {
@@ -307,6 +337,8 @@ class NT4Client {
   bool _attemptingRTTConnection = false;
 
   int _lastPongTime = 0;
+
+  static bool _pauseLiveUpdates = false;
 
   Map<int, NT4Subscription> get subscriptions => _subscriptions;
   Set<NT4Subscription> get subscribedTopics => _subscribedTopics;
@@ -1033,6 +1065,17 @@ class NT4Client {
   int getNewPubUID() {
     _publishUIDCounter++;
     return _publishUIDCounter + _clientId;
+  }
+
+  void pauseLiveUpdates() {
+    _pauseLiveUpdates = true;
+    print("NT4Client: Live updates paused");
+  }
+
+  /// Resumes processing of live NetworkTables updates after playback
+  void resumeLiveUpdates() {
+    _pauseLiveUpdates = false;
+    print("NT4Client: Live updates resumed");
   }
 }
 

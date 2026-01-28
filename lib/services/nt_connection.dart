@@ -36,6 +36,9 @@ class NTConnection {
   Map<int, NT4Subscription> subscriptionMap = {};
   Map<NT4Subscription, int> subscriptionUseCount = {};
 
+  bool _isPlaybackMode = false;
+  bool get isInPlaybackMode => _isPlaybackMode;
+
   NTConnection(String ipAddress) {
     nt4Connect(ipAddress);
   }
@@ -229,6 +232,14 @@ class NTConnection {
     return _ntClient.lastAnnouncedValues[topic];
   }
 
+  Map<String, Object?> getLastAnnouncedValues() {
+    return _ntClient.lastAnnouncedValues;
+  }
+
+  Map<String, int> getLastAnnouncedTimestamps() {
+    return _ntClient.lastAnnouncedTimestamps;
+  }
+
   void unpublishTopic(NT4Topic topic) {
     _ntClient.unpublishTopic(topic);
   }
@@ -241,8 +252,145 @@ class NTConnection {
     _ntClient.addSample(topic, data);
   }
 
+// ---- PLAYBACK SUPPORT ----
+
+// This must appear BEFORE sendPlaybackValue()
   @visibleForTesting
   void updateDataFromTopicName(String topic, dynamic data) {
     _ntClient.addSampleFromName(topic, data);
+  }
+
+  NT4Subscription getOrCreateSubscription(String topicName) {
+    for (final s in subscriptions) {
+      if (s.topic == topicName) {
+        return s;
+      }
+    }
+
+    final newSub = _ntClient.subscribe(
+      topic: topicName,
+      options: NT4SubscriptionOptions(),
+    );
+
+    return newSub;
+  }
+
+  void ensureWidgetExists(
+      String topicName, String widgetType, dynamic initialValue) {
+    print(
+        '🔵 ensureWidgetExists START: $topicName, type: $widgetType, value: $initialValue');
+
+    final typeTopicName = "$topicName/.type";
+
+    // Check if topic already exists
+    final existingTopics = _ntClient.announcedTopics;
+    final alreadyExists = existingTopics.values.any((t) => t.name == topicName);
+    print('   Topic already exists: $alreadyExists');
+
+    // 🟩 Create the .type topic
+    final typeTopic = NT4Topic(
+      name: typeTopicName,
+      type: NT4TypeStr.kString,
+      id: _ntClient.getNewPubUID(),
+      pubUID: _ntClient.getNewPubUID(),
+      properties: <String, dynamic>{},
+    );
+
+    publishTopic(typeTopic);
+    print('   Published .type topic with ID: ${typeTopic.id}');
+
+    // 🟩 CRITICAL: Manually add to announcedTopics and trigger listeners
+    _ntClient.announcedTopics[typeTopic.id] = typeTopic;
+    print(
+        '   Added .type to announcedTopics, total: ${_ntClient.announcedTopics.length}');
+
+    for (var listener in _ntClient.topicAnnounceListeners) {
+      listener(typeTopic);
+    }
+    print(
+        '   Triggered ${_ntClient.topicAnnounceListeners.length} listeners for .type');
+
+    // Update the value
+    final typeSub = getOrCreateSubscription(typeTopicName);
+    typeSub.updateValue(
+      widgetType,
+      DateTime.now().microsecondsSinceEpoch,
+      isPlayback: true,
+    );
+
+    // Store in lastAnnouncedValues
+    _ntClient.lastAnnouncedValues[typeTopicName] = widgetType;
+    _ntClient.lastAnnouncedTimestamps[typeTopicName] =
+        DateTime.now().microsecondsSinceEpoch;
+
+    // 🟩 Create the main topic
+    final mainTypeString = NT4TypeStr.fromValue(initialValue);
+
+    final mainTopic = NT4Topic(
+      name: topicName,
+      type: mainTypeString,
+      id: _ntClient.getNewPubUID(),
+      pubUID: _ntClient.getNewPubUID(),
+      properties: <String, dynamic>{
+        'retained': false,
+        'persistent': false,
+      },
+    );
+
+    publishTopic(mainTopic);
+    print('   Published main topic with ID: ${mainTopic.id}');
+
+    // 🟩 CRITICAL: Manually add to announcedTopics and trigger listeners
+    _ntClient.announcedTopics[mainTopic.id] = mainTopic;
+    print(
+        '   Added main topic to announcedTopics, total: ${_ntClient.announcedTopics.length}');
+
+    for (var listener in _ntClient.topicAnnounceListeners) {
+      listener(mainTopic);
+    }
+    print(
+        '   Triggered ${_ntClient.topicAnnounceListeners.length} listeners for main topic');
+
+    // Update the initial value
+    final mainSub = getOrCreateSubscription(topicName);
+    mainSub.updateValue(
+      initialValue,
+      DateTime.now().microsecondsSinceEpoch,
+      isPlayback: true,
+    );
+
+    // Store in lastAnnouncedValues
+    _ntClient.lastAnnouncedValues[topicName] = initialValue;
+    _ntClient.lastAnnouncedTimestamps[topicName] =
+        DateTime.now().microsecondsSinceEpoch;
+
+    print('🟢 ensureWidgetExists COMPLETE for: $topicName');
+  }
+
+  void sendPlaybackValue(
+    String topicName,
+    dynamic value,
+    String type,
+    String widgetType,
+  ) {
+    final sub = getOrCreateSubscription(topicName);
+
+    sub.updateValue(
+      value,
+      DateTime.now().microsecondsSinceEpoch,
+      isPlayback: true,
+    );
+  }
+
+  void exitPlaybackMode() {
+    print("NTConnection: Exiting playback mode");
+    _isPlaybackMode = false;
+    _ntClient.resumeLiveUpdates();
+  }
+
+  void enterPlaybackMode() {
+    print("NTConnection: Entering playback mode");
+    _isPlaybackMode = true;
+    _ntClient.pauseLiveUpdates();
   }
 }
