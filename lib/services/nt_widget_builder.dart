@@ -116,15 +116,15 @@ class NTWidgetBuilder {
     );
 
     register(
-      name: ActiveWidget.widgetType,
-      model: ActiveWidgetModel.new,
-      widget: ActiveWidget.new,
-      fromJson: ActiveWidgetModel.fromJson,
-      minHeight: _normalSize * 2,
-      minWidth: _normalSize * 2,
-      defaultHeight: 2,
-      defaultWidth: 2,
-      );
+    name: ActiveWidget.widgetType,
+    model: ActiveWidgetModel.new,
+    widget: ActiveWidget.new,
+    fromJson: ActiveWidgetModel.fromJson,
+    minHeight: _normalSize * 2,
+    minWidth: _normalSize * 2,
+    defaultHeight: 2,
+    defaultWidth: 2,
+    );
 
     register(
       name: ChassisSpeed.widgetType,

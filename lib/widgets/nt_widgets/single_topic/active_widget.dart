@@ -14,6 +14,14 @@ class ActiveWidgetModel extends MultiTopicNTWidgetModel {
   NT4Subscription? teleopSub;
   NT4Subscription? allianceSub;
   NT4Subscription? isTestingSub;
+  NT4Subscription? isReset;
+  NT4Subscription? countSub;
+
+  NT4Topic? _countTopic;
+  int localCount = 0;
+  int _lastCount = 0;
+
+
 
   String get timerTopic => '$topic/Timer';  
   String get fmsTopic => '$topic/GameSpecificMessage';
@@ -22,6 +30,8 @@ class ActiveWidgetModel extends MultiTopicNTWidgetModel {
   String get teleopTopic => '$topic/IsTeleop';
   String get allianceTopic => '$topic/Alliance';
   String get isTestingTopic => '$topic/IsTesting';
+  String get isResetTopic => '$topic/IsReset';
+  String get countTopic => '$topic/Count';
 
   @override
   String type = ActiveWidget.widgetType;
@@ -39,6 +49,7 @@ class ActiveWidgetModel extends MultiTopicNTWidgetModel {
   bool isBlinking = false; // מצב הבהוב
   bool _lastTeleop = false;
   double? _teleopStartRemaining; // למשל 110 בתחילת טלאופ, מה-DS
+  double? _lastTimerValue;
 
 
   ActiveWidgetModel({
@@ -58,7 +69,9 @@ class ActiveWidgetModel extends MultiTopicNTWidgetModel {
     autoSub = ntConnection.subscribe(autoTopic, super.period);
     teleopSub = ntConnection.subscribe(teleopTopic, super.period);
     allianceSub = ntConnection.subscribe(allianceTopic, super.period);
-    
+    isReset = ntConnection.subscribe(isResetTopic, super.period);
+    countSub = ntConnection.subscribe(countTopic, super.period);
+
     activeSubscription?.addListener(() {
       if (initialColor == null) {
         String? message = activeSubscription?.value as String?;
@@ -71,6 +84,16 @@ class ActiveWidgetModel extends MultiTopicNTWidgetModel {
     });
     
     timerSubscription?.addListener(() {
+      final double? t = timerSubscription?.value as double?;
+      if (t != null && _lastTimerValue != null) {
+        // אם הטיימר "קפץ קדימה" משמעותית => כנראה reset/run חדש
+        if (t - _lastTimerValue! > 1.0) {
+          _teleopStartRemaining = null;
+          // אם אתה רוצה להתחיל צבע מחדש כל run:
+          // initialColor = null;
+        }
+      }
+      _lastTimerValue = t;
       notifyListeners();
     });
 
@@ -95,6 +118,24 @@ class ActiveWidgetModel extends MultiTopicNTWidgetModel {
     });
 
     allianceSub?.addListener(() => notifyListeners());
+    countSub?.addListener(() {
+      final v = countSub?.value;
+      final prev = localCount;
+
+      if (v is int) {
+        localCount = v;
+      } else if (v is double) {
+        localCount = v.toInt();
+      }
+
+      // אם עברנו ל-RESET (1) או חזרנו ל-RUN (0) - מאפסים latch כדי שיתחיל נקי
+      if (localCount != prev) {
+        _teleopStartRemaining = null;
+        initialColor = null; // אופציונלי: אם אתה רוצה שייקלט צבע מחדש לריצה חדשה
+      }
+
+      notifyListeners();
+      });
   }
 
   @override
@@ -125,7 +166,24 @@ class ActiveWidgetModel extends MultiTopicNTWidgetModel {
     print('Latched teleop start: $_teleopStartRemaining');
   }
 
+  void incrementCount() {
+    // נקרא פעם ראשונה – מביאים topic ומפרסמים אותו
+    bool publish = _countTopic == null;
+    _countTopic ??= ntConnection.getTopicFromName(countTopic);
+    if (_countTopic == null) return;
 
+    if (publish) {
+      ntConnection.publishTopic(_countTopic!);
+    }
+
+    final next = (localCount + 1) % 2;
+    localCount = next;
+
+    // שולח ל-NT
+    ntConnection.updateDataFromTopic(_countTopic!, next);
+
+    notifyListeners();
+  }
 
   String? _getAllianceLetter() {
     final String? a = allianceSub?.value as String?;
@@ -166,7 +224,7 @@ class ActiveWidgetModel extends MultiTopicNTWidgetModel {
   // מחזיר את הזמן שנשאר לסייקל הנוכחי
   double getTimeLeftInCurrentCycle() {
     final double? t = timerSubscription?.value as double?;
-    print("t=$t auto=${autoSub?.value} tele=${teleopSub?.value} start=$_teleopStartRemaining");
+    //print("t=$t auto=${autoSub?.value} tele=${teleopSub?.value} start=$_teleopStartRemaining");
     if (t == null) return 0.0;
 
     if (t < 0) {
@@ -373,7 +431,7 @@ class ActiveWidgetModel extends MultiTopicNTWidgetModel {
 
 class ActiveWidget extends NTWidget {
   static const String widgetType = 'ActiveWidget';
-
+  bool isReset = false;
   ActiveWidget({super.key});
 
   @override
@@ -393,7 +451,19 @@ class ActiveWidget extends NTWidget {
             color: model.getColor(),
           ),
         ),
-
+        Positioned(
+          bottom: 0, left: -10, 
+          child: IconButton(
+            onPressed: model.incrementCount,
+            icon: Icon(
+              model.localCount == 0
+                ? Icons.refresh          // מצב רגיל
+                : Icons.play_arrow,  // practice timer
+              color: Colors.red,
+              size: 50,
+            )
+          )
+        ),
         // תוכן מעל הרקע
         Center(
           child: Column(
@@ -447,7 +517,7 @@ class ActiveWidget extends NTWidget {
                   children: [
                     const Icon(
                       Icons.arrow_downward,
-                      color: Colors.white70,
+                      color: Colors.black,
                       size: 20,
                     ),
                     const SizedBox(width: 8),
@@ -455,7 +525,7 @@ class ActiveWidget extends NTWidget {
                       'Next: ${nextCycle.toUpperCase()}',
                       style: const TextStyle(
                         fontSize: 18,
-                        color: Colors.white70,
+                        color: Colors.black,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
