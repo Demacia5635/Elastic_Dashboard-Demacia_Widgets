@@ -3,7 +3,6 @@ import 'package:elastic_dashboard/widgets/nt_widgets/nt_widget.dart';
 import 'package:flutter/material.dart';
 
 
-
 class PathPlenarModole extends NTWidgetModel {
   late NT4Subscription valueSubscription;
 
@@ -16,7 +15,9 @@ class PathPlenarModole extends NTWidgetModel {
     valueSubscription = ntConnection.subscribe('$topic/Value', 100);
   }
 
-  final NT4Client ntConnection;
+  late final NT4Subscription RobotPose;
+
+  
 }
 
 class PathplenarMain extends StatelessWidget {
@@ -35,6 +36,8 @@ class PathPlenar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Image(image: )),
-    )
+    ),
   }
 } 
+
+
