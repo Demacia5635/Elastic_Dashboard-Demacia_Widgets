@@ -90,16 +90,16 @@ class Field {
   int instanceCount = 0;
   bool fieldImageLoaded = false;
 
-  late int pixelsPerMeterHorizontal;
-  late int pixelsPerMeterVertical;
+  late double pixelsPerMeterHorizontal;
+  late double pixelsPerMeterVertical;
 
   Field({required this.jsonData}) {
     init();
   }
 
   void init() {
-    fieldImageWidth = 3600;
-    fieldImageHeight = 1400;
+    fieldImageWidth = null; //3600
+    fieldImageHeight = null; //1400
 
     game = jsonData['game'];
     sourceURL = jsonData['source-url'];
@@ -115,11 +115,11 @@ class Field {
         (jsonData['field-corners']['bottom-right'][0] as int).toDouble(),
         (jsonData['field-corners']['bottom-right'][1] as int).toDouble());
 
-    double fieldWidthPixels = bottomRightCorner.dx - topLeftCorner.dx;
-    double fieldHeightPixels = bottomRightCorner.dy - topLeftCorner.dy;
+    double fieldWidthPixels = (bottomRightCorner.dx - topLeftCorner.dx) + 1.0;
+    double fieldHeightPixels = (bottomRightCorner.dy - topLeftCorner.dy) + 1.0;
 
-    pixelsPerMeterHorizontal = (fieldWidthPixels / fieldWidthMeters).round();
-    pixelsPerMeterVertical = (fieldHeightPixels / fieldHeightMeters).round();
+    pixelsPerMeterHorizontal = fieldWidthPixels / fieldWidthMeters;
+    pixelsPerMeterVertical = fieldHeightPixels / fieldHeightMeters;
   }
 
   void loadFieldImage() {
