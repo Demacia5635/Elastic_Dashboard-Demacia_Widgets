@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import 'package:flutter_box_transform/flutter_box_transform.dart';
@@ -214,8 +216,11 @@ class WidgetContainer extends StatelessWidget {
                               horizontal: 10.0, vertical: 6.50),
                           child: Text(
                             title!,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleSmall,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontSize: (min(width, height) * 0.11).clamp(10.0, 32.0),
+                            ),
                           ),
                         ),
                       );
