@@ -208,8 +208,8 @@ void main() {
 
     expect(
         findGradient([
-          Color(Colors.transparent.value),
-          Color(Colors.transparent.value),
+          Color(Colors.transparent.toARGB32()),
+          Color(Colors.transparent.toARGB32()),
         ]),
         findsOneWidget);
   });

@@ -188,7 +188,7 @@ class FieldWidgetModel extends MultiTopicNTWidgetModel {
 
     _robotColor = Color(tryCast(jsonData['robot_color']) ?? Colors.red.value);
     _trajectoryColor =
-        Color(tryCast(jsonData['trajectory_color']) ?? Colors.white.value);
+        Color(tryCast(jsonData['trajectory_color']) ?? Colors.white.toARGB32());
 
     if (!FieldImages.hasField(_fieldGame)) {
       _fieldGame = _defaultGame;
@@ -257,8 +257,8 @@ class FieldWidgetModel extends MultiTopicNTWidgetModel {
       'show_other_objects': _showOtherObjects,
       'show_trajectories': _showTrajectories,
       'field_rotation': _fieldRotation,
-      'robot_color': robotColor.value,
-      'trajectory_color': trajectoryColor.value,
+      'robot_color': robotColor.toARGB32(),
+      'trajectory_color': trajectoryColor.toARGB32(),
     };
   }
 
@@ -533,7 +533,7 @@ class FieldWidget extends NTWidget {
         minHeight: 4.0,
       ),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.35),
+        color: Colors.black.withValues(alpha: 0.35),
         border: Border.all(
           color: model.robotColor,
           width: 0.125 * min(width, length),

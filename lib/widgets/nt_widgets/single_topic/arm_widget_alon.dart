@@ -163,10 +163,6 @@ class ArmAngleWidget extends NTWidget {
   const ArmAngleWidget({super.key});
 
 
-  String _secondsToMinutes(num time) {
-    return '${(time / 60.0).floor()}:${(time % 60).toString().padLeft(2, '0')}';
-  }
-
   @override
   Widget build(BuildContext context) {
     ArmAngleModel model = cast(context.watch<NTWidgetModel>());
@@ -180,31 +176,37 @@ class ArmAngleWidget extends NTWidget {
           angle = angle * pi / 180;
         }
 
-        String timeDisplayString;
-        if (model.angleDisplayMode == 'Minutes and Seconds' && angle >= 0) {
-          timeDisplayString = _secondsToMinutes(angle);
-        } else {
-          timeDisplayString = angle.toString();
-        }
-
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            ClipRRect(
-              child: FittedBox(
-                fit: BoxFit.contain,
-                child: Text(
-                  timeDisplayString,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    height: 1.0,
-                  ),
-                ),
-              ),
-            ),
-          ],
+        return CustomPaint(
+          size: Size.infinite,
+            painter: ArmPainter(angle),
         );
       },
     );
   }
+}
+class ArmPainter extends CustomPainter {
+  final double angle; // in radians
+
+  ArmPainter(this.angle);
+
+@override
+void paint(Canvas canvas, Size size) {
+  final center = Offset(size.width / 2, size.height / 2);
+  final length = min(size.width, size.height) / 2 * 0.9;
+
+  final end = Offset(
+    center.dx + length * sin(angle),
+    center.dy - length * cos(angle),
+  );
+
+  final paint = Paint()
+    ..color = Colors.blue
+    ..strokeWidth = 6
+    ..strokeCap = StrokeCap.round;
+
+  canvas.drawLine(center, end, paint);
+}
+
+  @override
+  bool shouldRepaint(ArmPainter old) => old.angle != angle;
 }

@@ -231,7 +231,7 @@ class _ElasticState extends State<Elastic> {
         version: widget.version,
         onColorChanged: (color) => setState(() {
           teamColor = color;
-          widget.preferences.setInt(PrefKeys.teamColor, color.value);
+          widget.preferences.setInt(PrefKeys.teamColor, color.toARGB32());
         }),
         onThemeVariantChanged: (variant) async {
           themeVariant = variant;

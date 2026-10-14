@@ -33,7 +33,7 @@ void main() {
             widget.data == text &&
             widget.style != null &&
             widget.style!.color != null &&
-            widget.style!.color!.value == color.value,
+            widget.style!.color!.toARGB32() == color.toARGB32(),
       );
 
   late SharedPreferences preferences;
@@ -77,6 +77,7 @@ void main() {
         'Voltage View',
         'Radial Gauge',
         'Match Time',
+        'Arm Angle',
         'Large Text Display',
       ]),
     );

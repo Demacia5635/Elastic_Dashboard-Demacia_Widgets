@@ -151,7 +151,7 @@ class NT4Subscription extends ValueNotifier<Object?> {
     }
   }
 
-  /**Updates value if not in playback mode */
+  /// Updates value if not in playback mode
   void updateValue(Object? value, int timestamp, {bool isPlayback = false}) {
     if (NT4Client._pauseLiveUpdates && !isPlayback) {
       return;

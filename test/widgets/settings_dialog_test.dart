@@ -362,7 +362,7 @@ void main() {
             onColorChanged: (color) async {
               fakeSettings.changeColor();
 
-              await preferences.setInt(PrefKeys.teamColor, color.value);
+              await preferences.setInt(PrefKeys.teamColor, color.toARGB32());
             },
           ),
         ),
@@ -408,7 +408,7 @@ void main() {
     await widgetTester.tap(saveButton);
 
     expect(preferences.getInt(PrefKeys.teamColor),
-        const Color.fromARGB(255, 0, 0, 255).value);
+        const Color.fromARGB(255, 0, 0, 255).toARGB32());
     verify(fakeSettings.changeColor()).called(greaterThanOrEqualTo(1));
   });
 

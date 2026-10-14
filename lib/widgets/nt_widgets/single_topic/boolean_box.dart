@@ -120,8 +120,8 @@ class BooleanBoxModel extends SingleTopicNTWidgetModel {
   Map<String, dynamic> toJson() {
     return {
       ...super.toJson(),
-      'true_color': _trueColor.value,
-      'false_color': _falseColor.value,
+      'true_color': _trueColor.toARGB32(),
+      'false_color': _falseColor.toARGB32(),
       'true_icon': _trueIcon,
       'false_icon': _falseIcon,
     };

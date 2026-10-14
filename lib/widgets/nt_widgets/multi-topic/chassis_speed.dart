@@ -171,7 +171,7 @@ class ChassisSpeedDisplay extends CustomPainter {
         style: TextStyle(
           color: Colors.black,
           fontSize: 12,
-          backgroundColor: Colors.white.withOpacity(0.8),
+          backgroundColor: Colors.white.withValues(alpha: 0.8),
         ),
       ),
       textDirection: TextDirection.ltr,

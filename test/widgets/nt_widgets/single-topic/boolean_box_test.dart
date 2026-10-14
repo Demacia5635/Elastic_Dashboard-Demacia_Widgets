@@ -36,7 +36,7 @@ void main() {
             widget is Container &&
             widget.decoration is BoxDecoration &&
             (widget.decoration as BoxDecoration).color != null &&
-            (widget.decoration as BoxDecoration).color!.value == color.value,
+            (widget.decoration as BoxDecoration).color!.toARGB32() == color.toARGB32(),
       );
 
   setUp(() async {
@@ -233,7 +233,7 @@ void main() {
 
     await widgetTester.pumpAndSettle();
 
-    expect(booleanBoxModel.trueColor.value, Colors.black.value);
+    expect(booleanBoxModel.trueColor.toARGB32(), Colors.black.toARGB32());
 
     await widgetTester
         .tap(find.byWidget(iconDropdown.evaluate().elementAt(1).widget));

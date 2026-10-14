@@ -47,10 +47,6 @@ class VectorModel extends MultiTopicNTWidgetModel {
     });
   }
 
-  @override
-  void dispose() {
-    super.dispose();
-  }
 
   List<VectorData> getVectors() {
     List<VectorData> vectors = [];
@@ -334,7 +330,7 @@ class VectorPainter extends CustomPainter {
   void _drawGridAndLabels(Canvas canvas, Size size, Offset origin,
       double gridScale, double scaleFactor) {
     final gridPaint = Paint()
-      ..color = Colors.grey.withOpacity(0.3)
+      ..color = Colors.grey.withValues(alpha: 0.3)
       ..strokeWidth = 0.5;
 
     final textPainter = TextPainter(

@@ -70,6 +70,7 @@ void main() {
         'Voltage View',
         'Radial Gauge',
         'Match Time',
+        'Arm Angle',
         'Large Text Display',
       ]),
     );
