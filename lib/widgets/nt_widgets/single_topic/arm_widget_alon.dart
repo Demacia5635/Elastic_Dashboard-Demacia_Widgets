@@ -1,13 +1,13 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'package:dot_cast/dot_cast.dart';
 import 'package:provider/provider.dart';
 
 import 'package:elastic_dashboard/widgets/dialog_widgets/dialog_dropdown_chooser.dart';
-import 'package:elastic_dashboard/widgets/dialog_widgets/dialog_text_input.dart';
+import 'package:elastic_dashboard/widgets/dialog_widgets/dialog_toggle_switch.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/nt_widget.dart';
-import 'dart:math';
 
 class ArmAngleModel extends SingleTopicNTWidgetModel {
   @override
@@ -27,20 +27,12 @@ class ArmAngleModel extends SingleTopicNTWidgetModel {
     'Degrees',
   ];
 
-  double _radianStartAngle = 0;
-  double _degreeStartAngle = 0;
+  bool _counterClockwisePositive = true;
 
-  double get radianStartAngle => _radianStartAngle;
+  bool get counterClockwisePositive => _counterClockwisePositive;
 
-  set radianStartAngle(double value) {
-    _radianStartAngle = value;
-    refresh();
-  }
-
-  double get degreeStartAngle => _degreeStartAngle;
-
-  set degreeStartAngle(double value) {
-    _degreeStartAngle = value;
+  set counterClockwisePositive(bool value) {
+    _counterClockwisePositive = value;
     refresh();
   }
 
@@ -49,13 +41,11 @@ class ArmAngleModel extends SingleTopicNTWidgetModel {
     required super.preferences,
     required super.topic,
     String angleDisplayMode = 'Radians',
-    double radianStartAngle = 0,
-    double degreeStartAngle = 0,
+    bool counterClockwisePositive = true,
     super.dataType,
     super.period,
   })  : _angleDisplayMode = angleDisplayMode,
-        _degreeStartAngle = degreeStartAngle,
-        _radianStartAngle = radianStartAngle,
+        _counterClockwisePositive = counterClockwisePositive,
         super();
 
   ArmAngleModel.fromJson({
@@ -65,16 +55,9 @@ class ArmAngleModel extends SingleTopicNTWidgetModel {
   }) : super.fromJson(jsonData: jsonData) {
     _angleDisplayMode = tryCast(jsonData['angle_display_mode']) ?? 'Radians';
 
-    _angleDisplayOptions.firstWhere(
-        (e) => e.toUpperCase() == _angleDisplayMode.toUpperCase(),
-        orElse: () => 'Radians');
-
-    _radianStartAngle =
-        tryCast<num>(jsonData['Radian_start_angle'])?.toDouble() ??
-            _radianStartAngle;
-    _degreeStartAngle =
-        tryCast<num>(jsonData['Degree_start_angle'])?.toDouble() ??
-            _degreeStartAngle;
+    _counterClockwisePositive =
+        tryCast<bool>(jsonData['counter_clockwise_positive']) ??
+            _counterClockwisePositive;
   }
 
   @override
@@ -85,7 +68,7 @@ class ArmAngleModel extends SingleTopicNTWidgetModel {
           const Text('Angle Display Mode'),
           DialogDropdownChooser<String>(
             initialValue: _angleDisplayMode,
-            choices: const ['Radians', 'Degrees'],
+            choices: _angleDisplayOptions,
             onSelectionChanged: (value) {
               if (value == null) {
                 return;
@@ -95,51 +78,10 @@ class ArmAngleModel extends SingleTopicNTWidgetModel {
             },
           ),
           const SizedBox(height: 5),
-          Row(
-            children: [
-              Flexible(
-                child: Tooltip(
-                  message:
-                      'The time (in seconds) where time will begin to display in red',
-                  waitDuration: const Duration(milliseconds: 750),
-                  child: DialogTextInput(
-                    label: 'Red Start Time',
-                    initialText: _radianStartAngle.toString(),
-                    onSubmit: (value) {
-                      double? newRedTime = double.tryParse(value);
-
-                      if (newRedTime == null) {
-                        return;
-                      }
-
-                      radianStartAngle = newRedTime;
-                    },
-                    formatter: FilteringTextInputFormatter.digitsOnly,
-                  ),
-                ),
-              ),
-              Flexible(
-                child: Tooltip(
-                  message:
-                      'The time (in seconds) where time will begin to display in yellow',
-                  waitDuration: const Duration(milliseconds: 750),
-                  child: DialogTextInput(
-                    label: 'Yellow Start Time',
-                    initialText: _degreeStartAngle.toString(),
-                    onSubmit: (value) {
-                      double? newYellowTime = double.tryParse(value);
-
-                      if (newYellowTime == null) {
-                        return;
-                      }
-
-                      degreeStartAngle = newYellowTime;
-                    },
-                    formatter: FilteringTextInputFormatter.digitsOnly,
-                  ),
-                ),
-              ),
-            ],
+          DialogToggleSwitch(
+            label: 'Counter Clockwise Positive',
+            initialValue: _counterClockwisePositive,
+            onToggle: (value) => counterClockwisePositive = value,
           ),
         ],
       ),
@@ -151,8 +93,7 @@ class ArmAngleModel extends SingleTopicNTWidgetModel {
     return {
       ...super.toJson(),
       'angle_display_mode': _angleDisplayMode,
-      'Radian_start_angle': _radianStartAngle,
-      'Degree_start_angle': _degreeStartAngle,
+      'counter_clockwise_positive': _counterClockwisePositive,
     };
   }
 }
@@ -162,51 +103,70 @@ class ArmAngleWidget extends NTWidget {
 
   const ArmAngleWidget({super.key});
 
-
   @override
   Widget build(BuildContext context) {
     ArmAngleModel model = cast(context.watch<NTWidgetModel>());
 
     return ValueListenableBuilder(
       valueListenable: model.subscription!,
-      builder: (context, data, child) {
-        double angle = tryCast(data) ?? 0;
-
+      builder: (_, data, __) {
+        double angle = tryCast<num>(data)?.toDouble() ?? 0;
         if (model.angleDisplayMode == 'Degrees') {
           angle = angle * pi / 180;
         }
+        if (model.counterClockwisePositive) {
+          angle = -angle;
+        }
 
-        return CustomPaint(
-          size: Size.infinite,
-            painter: ArmPainter(angle),
+        return TweenAnimationBuilder<double>(
+          tween: _ShortestAngleTween(end: angle),
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+          builder: (_, animatedAngle, __) {
+            return CustomPaint(
+              size: Size.infinite,
+              painter: ArmPainter(animatedAngle),
+            );
+          },
         );
       },
     );
   }
 }
+
 class ArmPainter extends CustomPainter {
   final double angle; // in radians
 
   ArmPainter(this.angle);
 
-@override
-void paint(Canvas canvas, Size size) {
-  final center = Offset(size.width / 2, size.height / 2);
-  final length = min(size.width, size.height) / 2 * 0.9;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final length = min(size.width, size.height) / 2 * 0.9;
 
-  final end = Offset(
-    center.dx + length * sin(angle),
-    center.dy - length * cos(angle),
-  );
+    final end = Offset(
+      center.dx + length * sin(angle),
+      center.dy - length * cos(angle),
+    );
 
-  final paint = Paint()
-    ..color = Colors.blue
-    ..strokeWidth = 6
-    ..strokeCap = StrokeCap.round;
+    final paint = Paint()
+      ..color = Colors.blue
+      ..strokeWidth = 6
+      ..strokeCap = StrokeCap.round;
 
-  canvas.drawLine(center, end, paint);
-}
+    canvas.drawLine(center, end, paint);
+  }
 
   @override
   bool shouldRepaint(ArmPainter old) => old.angle != angle;
+}
+
+class _ShortestAngleTween extends Tween<double> {
+  _ShortestAngleTween({super.begin, super.end});
+
+  @override
+  double lerp(double t) {
+    final diff = (end! - begin! + pi) % (2 * pi) - pi;
+    return begin! + diff * t;
+  }
 }

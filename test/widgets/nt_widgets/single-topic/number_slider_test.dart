@@ -69,6 +69,7 @@ void main() {
         'Graph',
         'Voltage View',
         'Radial Gauge',
+        'Arm Angle',
         'Match Time',
         'Large Text Display',
       ]),
