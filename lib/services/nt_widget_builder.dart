@@ -43,6 +43,7 @@ import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/boolean_box.da
 import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/graph.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/large_text_display.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/match_time.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/arm_angle_widget.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/multi_color_view.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/number_bar.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/number_slider.dart';
@@ -95,6 +96,18 @@ class NTWidgetBuilder {
     }
 
     logger.info('Configuring NT Widget Builder');
+
+    register(
+      name: ArmAngleWidget.widgetType, // "Arm" - must match the robot's .type
+      model: ArmAngleModel.new, // how to create a new model
+      widget: ArmAngleWidget.new, // how to create the widget
+      fromJson: ArmAngleModel.fromJson, // how to load from a saved layout
+      minWidth:
+          _normalSize * 2, // minimum size in pixels (1 grid cell ≈ 128 px)
+      minHeight: _normalSize * 2,
+      defaultWidth: 2, // starting size in grid cells
+      defaultHeight: 2,
+    );
 
     register(
         name: BooleanBox.widgetType,

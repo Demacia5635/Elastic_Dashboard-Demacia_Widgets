@@ -9,9 +9,18 @@ import 'package:elastic_dashboard/widgets/dialog_widgets/dialog_dropdown_chooser
 import 'package:elastic_dashboard/widgets/dialog_widgets/dialog_toggle_switch.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/nt_widget.dart';
 
-class ArmAngleModel extends SingleTopicNTWidgetModel {
+import 'package:elastic_dashboard/services/nt4_client.dart';
+
+class ArmAngleModel extends MultiTopicNTWidgetModel {
   @override
   String type = ArmAngleWidget.widgetType;
+
+  String get angleTopic => '$topic/Degrees';
+
+  late NT4Subscription angleSubscription;
+
+  @override
+  List<NT4Subscription> get subscriptions => [angleSubscription];
 
   String _angleDisplayMode = 'Radians';
 
@@ -96,24 +105,30 @@ class ArmAngleModel extends SingleTopicNTWidgetModel {
       'counter_clockwise_positive': _counterClockwisePositive,
     };
   }
+
+  @override
+  void initializeSubscriptions() {
+    angleSubscription = ntConnection.subscribe(angleTopic, super.period);
+  }
 }
 
 class ArmAngleWidget extends NTWidget {
-  static const String widgetType = 'Arm Angle';
+  static const String widgetType = 'Arm-Angle';
 
   const ArmAngleWidget({super.key});
-
   @override
   Widget build(BuildContext context) {
     ArmAngleModel model = cast(context.watch<NTWidgetModel>());
 
     return ValueListenableBuilder(
-      valueListenable: model.subscription!,
+      valueListenable: model.angleSubscription,
       builder: (_, data, __) {
         double angle = tryCast<num>(data)?.toDouble() ?? 0;
+
         if (model.angleDisplayMode == 'Degrees') {
           angle = angle * pi / 180;
         }
+
         if (model.counterClockwisePositive) {
           angle = -angle;
         }
