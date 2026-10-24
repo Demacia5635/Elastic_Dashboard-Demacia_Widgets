@@ -17,6 +17,7 @@ import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/combo_box_choos
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/command_scheduler.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/command_widget.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/differential_drive.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/elevator.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/encoder_widget.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/field_widget.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/fms_info.dart';
@@ -95,6 +96,17 @@ class NTWidgetBuilder {
     }
 
     logger.info('Configuring NT Widget Builder');
+
+    register(
+      name: ElevatorWidget.widgetType,     // "Arm" - must match the robot's .type
+      model: ElevatorModel.new,            // how to create a new model
+      widget: ElevatorWidget.new,          // how to create the widget
+      fromJson: ElevatorModel.fromJson,    // how to load from a saved layout
+      minWidth: _normalSize * 2,      // minimum size in pixels (1 grid cell ≈ 128 px)
+      minHeight: _normalSize * 2,
+      defaultWidth: 2,                // starting size in grid cells
+      defaultHeight: 2,
+    );
 
     register(
         name: BooleanBox.widgetType,

@@ -1,150 +1,101 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'package:dot_cast/dot_cast.dart';
 import 'package:provider/provider.dart';
 
-import 'package:elastic_dashboard/widgets/dialog_widgets/dialog_dropdown_chooser.dart';
+import 'package:elastic_dashboard/services/nt4_client.dart';
+import 'package:elastic_dashboard/services/text_formatter_builder.dart';
 import 'package:elastic_dashboard/widgets/dialog_widgets/dialog_text_input.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/nt_widget.dart';
 
-class elevatorModel extends SingleTopicNTWidgetModel {
+class ElevatorModel extends SingleTopicNTWidgetModel {
   @override
-  String type = elevatorWidget.widgetType;
+  String type = ElevatorWidget.widgetType;
 
-  String _timeDisplayMode = '';
+  String get heightTopic => '$topic/Height';
 
-  String get timeDisplayMode => _timeDisplayMode;
+  late NT4Subscription heightSubscription;
 
-  set timeDisplayMode(String value) {
-    _timeDisplayMode = value;
+  // Every subscription goes in this list, so Elastic can clean them up.
+  @override
+  List<NT4Subscription> get subscriptions => [heightSubscription];
+
+  double _minHeight = 0;
+  double _maxHeight = 1.3;
+
+  double get minHeight => _minHeight;
+
+  set minHeight(double value) {
+    _minHeight = value;
     refresh();
   }
 
-  static final List<String> _timeDisplayOptions = [
-    '',
-  ];
+  double get maxHeight => _maxHeight;
 
-  int _minimumHight = 0;
-  int _MaxHight = 5;
-  
-  int get minimumHight => _minimumHight;
-
-  set minimumHight(int value) {
-    _minimumHight = value;
+  set maxHeight(double value) {
+    _maxHeight = value;
     refresh();
   }
 
-  int get maximumHight => _MaxHight;
-
-  set maximumHight(int value) {
-    _MaxHight = value;
-    refresh();
-  }
-
-  
-
-  elevatorModel({
+  ElevatorModel({
     required super.ntConnection,
     required super.preferences,
     required super.topic,
-    String timeDisplayMode = 'Minutes and Seconds',
-    int minimumHight = 0,
-    int maximumHight = 5,
+    double minHeight = 0,
+    double maxHeight = 1.3,
     super.dataType,
     super.period,
-  })  : _timeDisplayMode = timeDisplayMode,
-        _MaxHight = maximumHight,
-        _minimumHight = minimumHight,
+  })  : _minHeight = minHeight,
+        _maxHeight = maxHeight,
         super();
 
-  elevatorModel.fromJson({
+  ElevatorModel.fromJson({
     required super.ntConnection,
     required super.preferences,
     required Map<String, dynamic> jsonData,
   }) : super.fromJson(jsonData: jsonData) {
-    _timeDisplayMode =
-        tryCast(jsonData['time_display_mode']) ?? 'Minutes and Seconds';
+    _minHeight = tryCast<num>(jsonData['min_height'])?.toDouble() ?? 0;
+    _maxHeight = tryCast<num>(jsonData['max_height'])?.toDouble() ?? 1.3;
+  }
 
-    _timeDisplayOptions.firstWhere(
-        (e) => e.toUpperCase() == _timeDisplayMode.toUpperCase(),
-        orElse: () => 'Minutes and Seconds');
-
-    _minimumHight =
-        tryCast<num>(jsonData['minimum_height'])?.toInt() ?? _minimumHight;
-    _MaxHight = tryCast<num>(jsonData['maximum_height'])?.toInt() ??
-        _MaxHight;
+  // Called when the widget is created, and again if the topic changes.
+  @override
+  void initializeSubscriptions() {
+    heightSubscription = ntConnection.subscribe(heightTopic, period);
   }
 
   @override
   List<Widget> getEditProperties(BuildContext context) {
     return [
-     Flexible(
+      Row(
+        children: [
+          Flexible(
             child: DialogTextInput(
-              onSubmit: (value) {
-                double? newMax = double.tryParse(value);
-                if (newMax == null) {
-                  return;
-                }
-                _maxValue = newMax;
-              },
+              label: 'Min Height',
+              initialText: _minHeight.toString(),
               formatter: TextFormatterBuilder.decimalTextFormatter(
                   allowNegative: true),
-              label: 'Max Value',
-              initialText: _maxValue.toString(),
+              onSubmit: (value) {
+                final double? newMin = double.tryParse(value);
+                if (newMin != null) {
+                  minHeight = newMin;
+                }
+              },
             ),
           ),
-        ],
-
-              timeDisplayMode = value;
-            },
-       
-          const SizedBox(height: 5),
-          Row(
-            children: [
-              Flexible(
-                child: Tooltip(
-                  message:
-                      'The time (in seconds) where time will begin to display in red',
-                  waitDuration: const Duration(milliseconds: 750),
-                  child: DialogTextInput(
-                    label: 'Red Start Time',
-                    initialText: _redStartTime.toString(),
-                    onSubmit: (value) {
-                      int? newRedTime = int.tryParse(value);
-
-                      if (newRedTime == null) {
-                        return;
-                      }
-
-                      redStartTime = newRedTime;
-                    },
-                    formatter: FilteringTextInputFormatter.digitsOnly,
-                  ),
-                ),
-              ),
-              Flexible(
-                child: Tooltip(
-                  message:
-                      'The time (in seconds) where time will begin to display in yellow',
-                  waitDuration: const Duration(milliseconds: 750),
-                  child: DialogTextInput(
-                    label: 'Yellow Start Time',
-                    initialText: _yellowStartTime.toString(),
-                    onSubmit: (value) {
-                      int? newYellowTime = int.tryParse(value);
-
-                      if (newYellowTime == null) {
-                        return;
-                      }
-
-                      yellowStartTime = newYellowTime;
-                    },
-                    formatter: FilteringTextInputFormatter.digitsOnly,
-                  ),
-                ),
-              ),
-            ],
+          Flexible(
+            child: DialogTextInput(
+              label: 'Max Height',
+              initialText: _maxHeight.toString(),
+              formatter: TextFormatterBuilder.decimalTextFormatter(
+                  allowNegative: true),
+              onSubmit: (value) {
+                final double? newMax = double.tryParse(value);
+                if (newMax != null) {
+                  maxHeight = newMax;
+                }
+              },
+            ),
           ),
         ],
       ),
@@ -155,68 +106,77 @@ class elevatorModel extends SingleTopicNTWidgetModel {
   Map<String, dynamic> toJson() {
     return {
       ...super.toJson(),
-      'time_display_mode': _timeDisplayMode,
-      'red_start_time': _redStartTime,
-      'yellow_start_time': _yellowStartTime,
+      'min_height': _minHeight,
+      'max_height': _maxHeight,
     };
   }
 }
 
-class elevatorWidget extends NTWidget {
-  static const String widgetType = 'elevator';
+class ElevatorWidget extends NTWidget {
+  static const String widgetType = 'Elevator';
 
-  const elevatorWidget({super.key});
-
-  Color _getTimeColor(elevatorModel model, num time) {
-    if (time <= model.redStartTime) {
-      return Colors.red;
-    } else if (time <= model.yellowStartTime) {
-      return Colors.yellow;
-    } else if (time <= 60.0) {
-      return Colors.green;
-    }
-
-    return Colors.blue;
-  }
-
-  String _secondsToMinutes(num time) {
-    return '${(time / 60.0).floor()}:${(time % 60).toString().padLeft(2, '0')}';
-  }
+  const ElevatorWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
-    MatchTimeModel model = cast(context.watch<NTWidgetModel>());
+    ElevatorModel model = cast(context.watch<NTWidgetModel>());
 
     return ValueListenableBuilder(
-      valueListenable: model.subscription!,
+      valueListenable: model.heightSubscription,
       builder: (context, data, child) {
-        double time = tryCast(data) ?? -1.0;
-        time = time.floorToDouble();
+        double value = tryCast<num>(data)?.toDouble() ?? model.minHeight;
 
-        String timeDisplayString;
-        if (model.timeDisplayMode == 'Minutes and Seconds' && time >= 0) {
-          timeDisplayString = _secondsToMinutes(time.toInt());
-        } else {
-          timeDisplayString = time.toInt().toString();
-        }
+        double range = model.maxHeight - model.minHeight;
+        double fraction = range <= 0
+            ? 0.0
+            : ((value - model.minHeight) / range).clamp(0.0, 1.0);
 
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            ClipRRect(
-              child: FittedBox(
-                fit: BoxFit.contain,
-                child: Text(
-                  timeDisplayString,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    height: 1.0,
-                    color: _getTimeColor(model, time),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            const double carriageHeight = 24;
+            double travel = constraints.maxHeight - carriageHeight;
+            if (travel < 0) {
+              travel = 0;
+            }
+
+            return Row(
+              children: [
+                Expanded(
+                  child: Stack(
+                    children: [
+                      // The shaft
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border.all(color: Colors.grey, width: 2),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                      // The carriage
+                      Positioned(
+                        left: 4,
+                        right: 4,
+                        bottom: fraction * travel,
+                        height: carriageHeight,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.blue,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ),
-          ],
+                const SizedBox(width: 8),
+                Text(
+                  value.toStringAsFixed(2),
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ],
+            );
+          },
         );
       },
     );
