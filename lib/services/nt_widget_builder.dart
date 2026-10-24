@@ -17,7 +17,7 @@ import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/combo_box_choos
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/command_scheduler.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/command_widget.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/differential_drive.dart';
-import 'package:elastic_dashboard/widgets/nt_widgets/single_topic/elevator.dart';
+import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/elevator.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/encoder_widget.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/field_widget.dart';
 import 'package:elastic_dashboard/widgets/nt_widgets/multi-topic/fms_info.dart';
